@@ -10,6 +10,7 @@ import com.Utils.Archive;
 import com.Utils.Colors;
 import com.Utils.LDBFormat;
 import com.xeio.AgentTweaks.Utils;
+import gfx.controls.CheckBox;
 import mx.utils.Delegate;
 
 class com.xeio.AgentTweaks.AgentTweaks
@@ -203,6 +204,19 @@ class com.xeio.AgentTweaks.AgentTweaks
         removeAllButton.textField.text = "Get All Items";
         removeAllButton.disableFocus = true;
         removeAllButton.addEventListener("click", this, "UnequipAll");
+		
+		var roster = content.m_Roster;
+		var hideMaxCB = roster.attachMovie("CheckBoxNoneLabel", "u_hidemaxCB", roster.getNextHighestDepth());
+		hideMaxCB.disableFocus = true;
+		hideMaxCB._x = roster.m_NextButton._x + 50;
+		hideMaxCB._y = roster.m_NextButton._y - 3.5;
+		hideMaxCB.addEventListener("click", this, "HideMaxLevelChanged");
+		HideMaxLevelChanged();
+		
+		var hideMaxLabel = roster.createTextField("u_hidemaxText", roster.getNextHighestDepth(), hideMaxCB._x + 12, hideMaxCB._y, 100, 20)
+		hideMaxLabel.setNewTextFormat(roster.m_PageNum.getTextFormat());
+		hideMaxLabel.embedFonts = true;
+		hideMaxLabel.text = "Hide Max Level";
         
         content.m_Roster.m_PrevButton.addEventListener("click", this, "HighlightMatchingBonuses");
         content.m_Roster.m_NextButton.addEventListener("click", this, "HighlightMatchingBonuses");
@@ -210,6 +224,13 @@ class com.xeio.AgentTweaks.AgentTweaks
         
         ScheduleResort();
     }
+	
+	private function HideMaxLevelChanged() 
+	{
+		var roster = _root.agentsystem.m_Window.m_Content.m_Roster;
+		roster.m_FilterObject["maxlevel"] = roster.u_hidemaxCB.selected;
+		roster.SetPage(roster.m_CurrentPage);
+	}
     
     private function ShowAvailableMissions()
     {
@@ -665,6 +686,7 @@ class com.xeio.AgentTweaks.AgentTweaks
             {
                 traitPanel["u_traitbox" + t].removeMovieClip();
             }
+			rosterIcon.m_Frame["u_bonuses"].removeMovieClip();
         }
     }
     
@@ -686,6 +708,9 @@ class com.xeio.AgentTweaks.AgentTweaks
             var rosterIcon = roster["Icon_" + i];
             var agent:AgentSystemAgent = rosterIcon.data;
             var traitPanel = rosterIcon.m_TraitCategories;
+			
+			//Do it before match checking because some agents have bonuses even without matches.
+			DrawMissionBonus(mission, agent, rosterIcon);
             
             var matchStatus = GetTraitMatchStatus(mission, agent);
             if (matchStatus == MATCH_NONE)
@@ -710,6 +735,77 @@ class com.xeio.AgentTweaks.AgentTweaks
             }
         }
     }
+	
+	private function DrawMissionBonus(mission:AgentSystemMission, agent:AgentSystemAgent, icon:Object) 
+	{
+		var bonuses:Array = [];
+		var missionOverride:AgentSystemMission = AgentSystem.GetMissionOverride(mission.m_MissionId, agent.m_AgentId);
+		
+		//cost bonuses
+		if (missionOverride.m_IntelCost < mission.m_IntelCost)
+			bonuses.push(["- intel cost", Colors.e_ColorPureRed]);
+		else if (missionOverride.m_IntelCost > mission.m_IntelCost)
+			bonuses.push(["+ intel cost", Colors.e_ColorLightRed]);
+		
+		if (missionOverride.m_SuppliesCost < mission.m_SuppliesCost)
+			bonuses.push(["- supplies cost", Colors.e_ColorPureRed]);
+		else if (missionOverride.m_SuppliesCost > mission.m_SuppliesCost)
+			bonuses.push(["+ supplies cost", Colors.e_ColorLightRed]);
+			
+		if (missionOverride.m_AssetsCost < mission.m_AssetsCost)
+			bonuses.push(["- assets cost", Colors.e_ColorPureRed]);
+		else if (missionOverride.m_AssetsCost > mission.m_AssetsCost)
+			bonuses.push(["+ assets cost", Colors.e_ColorLightRed]);
+		
+		//Rewards bonuses
+		if (missionOverride.m_IntelReward < mission.m_IntelReward)
+			bonuses.push(["- intel reward", Colors.e_ColorLightGreen]);
+		else if (missionOverride.m_IntelReward > mission.m_IntelReward)
+			bonuses.push(["+ intel reward", Colors.e_ColorPureGreen]);
+		
+		if (missionOverride.m_SuppliesReward < mission.m_SuppliesReward)
+			bonuses.push(["- supplies reward", Colors.e_ColorLightGreen]);
+		else if (missionOverride.m_SuppliesReward > mission.m_SuppliesReward)
+			bonuses.push(["+ supplies reward", Colors.e_ColorPureGreen]);
+			
+		if (missionOverride.m_AssetsReward < mission.m_AssetsReward)
+			bonuses.push(["- assets reward", Colors.e_ColorLightGreen]);
+		else if (missionOverride.m_AssetsReward > mission.m_AssetsReward)
+			bonuses.push(["+ assets reward", Colors.e_ColorPureGreen]);
+		
+		if (bonuses.length)
+		{
+			var portrait = icon.m_Frame;
+			var clip:MovieClip = portrait.createEmptyMovieClip("u_bonuses", portrait.getNextHighestDepth());
+			var clipWidth:Number = 104;
+			var clipHeight:Number = bonuses.length * 12 + 1;
+			var offsetBGTop:Number = 2; //offsetting background makes it look a bit better.
+			clip._x = 24;
+			clip._y = portrait._height - clipHeight;
+			clip.beginFill(0x000000, 50);
+			clip.moveTo(0, offsetBGTop); 
+			clip.lineTo(clipWidth, offsetBGTop);
+			clip.lineTo(clipWidth, clipHeight + offsetBGTop);
+			clip.lineTo(0, clipHeight + offsetBGTop);
+			clip.lineTo(0, offsetBGTop);
+			clip.endFill();
+			var y = 0;
+			var textFormat:TextFormat = icon.m_Name.getTextFormat();
+			textFormat.align = "left";
+			textFormat.size = 12;
+			textFormat.bold = true;
+			for (var i = 0; i < bonuses.length; i++)
+			{
+				var textfield:TextField = clip.createTextField("m_bonus" + i, clip.getNextHighestDepth(), 0, y, 104, 20);
+				textFormat.color = bonuses[i][1];
+				textfield.setNewTextFormat(textFormat);
+				textfield.embedFonts = true;
+				textfield.text = bonuses[i][0];
+				
+				y += 12;
+			}
+		}
+	}
     
     private function DrawBoxAroundTrait(traitPanel:MovieClip, boxIndex: Number, color:Number)
     {
