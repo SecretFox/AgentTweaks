@@ -10,7 +10,6 @@ import com.Utils.Archive;
 import com.Utils.Colors;
 import com.Utils.LDBFormat;
 import com.xeio.AgentTweaks.Utils;
-import gfx.controls.CheckBox;
 import mx.utils.Delegate;
 
 class com.xeio.AgentTweaks.AgentTweaks
@@ -230,6 +229,7 @@ class com.xeio.AgentTweaks.AgentTweaks
 		var roster = _root.agentsystem.m_Window.m_Content.m_Roster;
 		roster.m_FilterObject["maxlevel"] = roster.u_hidemaxCB.selected;
 		roster.SetPage(roster.m_CurrentPage);
+		HighlightMatchingBonuses();
 	}
     
     private function ShowAvailableMissions()
@@ -686,7 +686,8 @@ class com.xeio.AgentTweaks.AgentTweaks
             {
                 traitPanel["u_traitbox" + t].removeMovieClip();
             }
-			rosterIcon.m_Frame["u_bonuses"].removeMovieClip();
+			rosterIcon.m_Frame["u_bonusesCost"].removeMovieClip();
+			rosterIcon.m_Frame["u_bonusesRewards"].removeMovieClip();
         }
     }
     
@@ -738,71 +739,79 @@ class com.xeio.AgentTweaks.AgentTweaks
 	
 	private function DrawMissionBonus(mission:AgentSystemMission, agent:AgentSystemAgent, icon:Object) 
 	{
-		var bonuses:Array = [];
 		var missionOverride:AgentSystemMission = AgentSystem.GetMissionOverride(mission.m_MissionId, agent.m_AgentId);
+		var bonusesCost:Array = [];
+		var bonusesRewards:Array = [];
 		
 		//cost bonuses
 		if (missionOverride.m_IntelCost < mission.m_IntelCost)
-			bonuses.push(["- intel cost", Colors.e_ColorPureRed]);
-		else if (missionOverride.m_IntelCost > mission.m_IntelCost)
-			bonuses.push(["+ intel cost", Colors.e_ColorLightRed]);
+			bonusesCost.push("T207");
 		
 		if (missionOverride.m_SuppliesCost < mission.m_SuppliesCost)
-			bonuses.push(["- supplies cost", Colors.e_ColorPureRed]);
-		else if (missionOverride.m_SuppliesCost > mission.m_SuppliesCost)
-			bonuses.push(["+ supplies cost", Colors.e_ColorLightRed]);
+			bonusesCost.push("T208");
 			
 		if (missionOverride.m_AssetsCost < mission.m_AssetsCost)
-			bonuses.push(["- assets cost", Colors.e_ColorPureRed]);
-		else if (missionOverride.m_AssetsCost > mission.m_AssetsCost)
-			bonuses.push(["+ assets cost", Colors.e_ColorLightRed]);
+			bonusesCost.push("T209");
 		
 		//Rewards bonuses
-		if (missionOverride.m_IntelReward < mission.m_IntelReward)
-			bonuses.push(["- intel reward", Colors.e_ColorLightGreen]);
-		else if (missionOverride.m_IntelReward > mission.m_IntelReward)
-			bonuses.push(["+ intel reward", Colors.e_ColorPureGreen]);
+		if (missionOverride.m_IntelReward > mission.m_IntelReward)
+			bonusesRewards.push("T207");
 		
-		if (missionOverride.m_SuppliesReward < mission.m_SuppliesReward)
-			bonuses.push(["- supplies reward", Colors.e_ColorLightGreen]);
-		else if (missionOverride.m_SuppliesReward > mission.m_SuppliesReward)
-			bonuses.push(["+ supplies reward", Colors.e_ColorPureGreen]);
+		if (missionOverride.m_SuppliesReward > mission.m_SuppliesReward)
+			bonusesRewards.push("T208");
 			
-		if (missionOverride.m_AssetsReward < mission.m_AssetsReward)
-			bonuses.push(["- assets reward", Colors.e_ColorLightGreen]);
-		else if (missionOverride.m_AssetsReward > mission.m_AssetsReward)
-			bonuses.push(["+ assets reward", Colors.e_ColorPureGreen]);
+		//if (missionOverride.m_AssetsReward > mission.m_AssetsReward)
+			bonusesRewards.push("T209");
 		
-		if (bonuses.length)
+		var portrait = icon.m_Frame;
+		var maxWidth:Number = 104;
+		var clipHeight:Number = 23;
+			
+		if (bonusesCost.length)
 		{
-			var portrait = icon.m_Frame;
-			var clip:MovieClip = portrait.createEmptyMovieClip("u_bonuses", portrait.getNextHighestDepth());
-			var clipWidth:Number = 104;
-			var clipHeight:Number = bonuses.length * 12 + 1;
-			var offsetBGTop:Number = 2; //offsetting background makes it look a bit better.
+			var width = bonusesCost.length * 22.5 + 5;
+			var height = clipHeight + 2;
+			var clip:MovieClip = portrait.createEmptyMovieClip("u_bonusesCost", portrait.getNextHighestDepth());
 			clip._x = 24;
 			clip._y = portrait._height - clipHeight;
-			clip.beginFill(0x000000, 50);
-			clip.moveTo(0, offsetBGTop); 
-			clip.lineTo(clipWidth, offsetBGTop);
-			clip.lineTo(clipWidth, clipHeight + offsetBGTop);
-			clip.lineTo(0, clipHeight + offsetBGTop);
-			clip.lineTo(0, offsetBGTop);
+			clip.beginFill(Colors.e_ColorLightRed, 50);
+			clip.moveTo(0, 0); 
+			clip.lineTo(width, 0);
+			clip.lineTo(width, height);
+			clip.lineTo(0, height);
+			clip.lineTo(0, 0);
 			clip.endFill();
-			var y = 0;
-			var textFormat:TextFormat = icon.m_Name.getTextFormat();
-			textFormat.align = "left";
-			textFormat.size = 12;
-			textFormat.bold = true;
-			for (var i = 0; i < bonuses.length; i++)
+			for (var i = 0; i < bonusesCost.length; i++)
 			{
-				var textfield:TextField = clip.createTextField("m_bonus" + i, clip.getNextHighestDepth(), 0, y, 104, 20);
-				textFormat.color = bonuses[i][1];
-				textfield.setNewTextFormat(textFormat);
-				textfield.embedFonts = true;
-				textfield.text = bonuses[i][0];
-				
-				y += 12;
+				var bonus:MovieClip = clip.attachMovie(bonusesCost[i], "m_bonusCost" + i, clip.getNextHighestDepth());
+				bonus._x = i * 22.5 + 2.5;
+				bonus._y = 2;
+				bonus._width = 20;
+				bonus._height = 20;
+			}
+		}
+		
+		if (bonusesRewards.length)
+		{
+			var width = bonusesRewards.length * 22.5 + 5;
+			var height = clipHeight + 2;
+			var clip:MovieClip = portrait.createEmptyMovieClip("u_bonusesRewards", portrait.getNextHighestDepth());
+			clip._x = maxWidth - width + 24;
+			clip._y = portrait._height - clipHeight;
+			clip.beginFill(Colors.e_ColorGreen, 50);
+			clip.moveTo(0, 0); 
+			clip.lineTo(width, 0);
+			clip.lineTo(width, height);
+			clip.lineTo(0, height);
+			clip.lineTo(0, 0);
+			clip.endFill();
+			for (var i = 0; i < bonusesRewards.length; i++)
+			{
+				var bonus:MovieClip = clip.attachMovie(bonusesRewards[i], "m_bonusReward" + i, clip.getNextHighestDepth());
+				bonus._x = (bonusesRewards.length - i - 1) * 22.5 + 2.5;
+				bonus._y = 2;
+				bonus._width = 20;
+				bonus._height = 20;
 			}
 		}
 	}
