@@ -17,6 +17,7 @@ class com.xeio.AgentTweaks.AgentTweaks
     private var m_swfRoot: MovieClip;
 
     private var m_uiScale:DistributedValue;
+	private var m_fontScale:DistributedValue;
     
     private var m_timeout:Number;
     
@@ -63,6 +64,8 @@ class com.xeio.AgentTweaks.AgentTweaks
         AgentSystem.SignalMissionCompleted.Disconnect(MissionCompleted, this);
         m_uiScale.SignalChanged.Disconnect(SetUIScale, this);        
         m_uiScale = undefined;
+		m_fontScale.SignalChanged.Disconnect(SetFontScale, this);        
+        m_fontScale = undefined;
         //In the off chance it's just this add-on unloading, close the whole agent system too so our events don't break things
         DistributedValueBase.SetDValue("agentSystem_window", false);
     }
@@ -92,6 +95,8 @@ class com.xeio.AgentTweaks.AgentTweaks
 	{
         m_uiScale = DistributedValue.Create("AgentTweaks_UIScale");
         m_uiScale.SignalChanged.Connect(SetUIScale, this);
+		m_fontScale = DistributedValue.Create("AgentTweaks_FontScale");
+        m_fontScale.SignalChanged.Connect(SetFontScale, this);
         
         AgentSystem.SignalAgentStatusUpdated.Connect(AgentStatusUpdated, this);
         AgentSystem.SignalAvailableMissionsUpdated.Connect(AvailableMissionsUpdated, this);
@@ -179,6 +184,78 @@ class com.xeio.AgentTweaks.AgentTweaks
         _root.agentsystem._xscale = m_uiScale.GetValue();
         _root.agentsystem._yscale = m_uiScale.GetValue();
     }
+	
+	public function SetFontScale()
+    {
+		var scale:Number = m_fontScale.GetValue();
+		for (var i = 0; i < 5; i++) 
+		{
+			var activeSlot = _root.agentsystem.m_Window.m_Content.m_MissionList["m_Slot_" + i];
+			var availableSlot = _root.agentsystem.m_Window.m_Content.m_AvailableMissionList["m_Slot_" + i];
+			
+			//Active Timer
+			var activeTimer = activeSlot.m_ActiveBG.m_Progress.m_Timer;
+			var baseY = activeTimer._y * 100.0 / activeTimer._yscale; //Simple scaling works fine here
+			activeTimer._y = baseY / 100.0 * scale;
+			
+			var baseWidth = activeTimer._width / (activeTimer._xscale / 100.0);
+			var baseX = activeTimer._x + baseWidth * (activeTimer._xscale / 100.0 - 1.0);
+			activeTimer._x = baseX - baseWidth * (scale / 100.0 - 1.0);
+			
+			activeTimer._xscale = scale;
+			activeTimer._yscale = scale;
+		}
+		
+		ScaleAvailableMissions();
+    }
+	
+	private function ScaleAvailableMissions() 
+	{
+		var availableMissions = _root.agentsystem.m_Window.m_Content.m_AvailableMissionList;
+		
+		if (!availableMissions)
+			return;
+		
+		var scale:Number = m_fontScale.GetValue();
+		for (var i = 0; i < 5; i++) 
+		{
+			var availableSlot = availableMissions["m_Slot_" + i];
+			
+			//Currencies
+			SetTextfieldScale(availableSlot.m_Currency.m_Intel, scale);
+			SetTextfieldScale(availableSlot.m_Currency.m_Supplies, scale);
+			SetTextfieldScale(availableSlot.m_Currency.m_Assets, scale);
+			SetTextfieldScale(availableSlot.m_Currency.m_XP, scale);
+			
+			//Duration
+			var duration = availableSlot.m_Duration;
+			var baseHeight = duration._height / (duration._yscale / 100.0);
+			var baseY = duration._y + baseHeight * (duration._yscale / 100.0 - 1.0) / 10.0;
+			duration._y = baseY - baseHeight * (scale / 100.0 - 1.0) / 10.0;
+			
+			var baseWidth = duration._width / (duration._xscale / 100.0);
+			var baseX = duration._x + baseWidth * (duration._xscale / 100.0 - 1.0) / 2.0;
+			duration._x = baseX - baseWidth * (scale / 100.0 - 1.0) / 2.0;
+			
+			duration._xscale = scale;
+			duration._yscale = scale;
+		}
+	}
+	
+	private function SetTextfieldScale(field:TextField, scale:Number)
+	{
+		var baseHeight = field._height / (field._yscale / 100.0);
+		var baseY = field._y + baseHeight * (field._yscale / 100.0 - 1.0) / 2.0;
+		field._y = baseY - baseHeight * (scale / 100.0 - 1.0) / 2.0;
+		
+		field._xscale = scale;
+		field._yscale = scale;
+	}
+	
+	public function SetBonusesIcons()
+	{
+		HighlightMatchingBonuses();
+	}
     
     private function InitializeUI()
     {
@@ -191,6 +268,7 @@ class com.xeio.AgentTweaks.AgentTweaks
         }
         
         SetUIScale();
+		SetFontScale();
         
         content.m_MissionList.SignalEmptyMissionSelected.Connect(SlotEmptyMissionSelected, this);
         
@@ -330,6 +408,8 @@ class com.xeio.AgentTweaks.AgentTweaks
         {
             return;
         }
+		
+		ScaleAvailableMissions();
         
         var agent:AgentSystemAgent = _root.agentsystem.m_Window.m_Content.m_AgentInfoSheet.m_AgentData;
                 
@@ -686,8 +766,7 @@ class com.xeio.AgentTweaks.AgentTweaks
             {
                 traitPanel["u_traitbox" + t].removeMovieClip();
             }
-			rosterIcon.m_Frame["u_bonusesCost"].removeMovieClip();
-			rosterIcon.m_Frame["u_bonusesRewards"].removeMovieClip();
+			rosterIcon.m_Frame["u_bonuses"].removeMovieClip();
         }
     }
     
@@ -711,7 +790,7 @@ class com.xeio.AgentTweaks.AgentTweaks
             var traitPanel = rosterIcon.m_TraitCategories;
 			
 			//Do it before match checking because some agents have bonuses even without matches.
-			DrawMissionBonus(mission, agent, rosterIcon);
+			DrawAgentBonus(mission, agent, rosterIcon);
             
             var matchStatus = GetTraitMatchStatus(mission, agent);
             if (matchStatus == MATCH_NONE)
@@ -737,83 +816,107 @@ class com.xeio.AgentTweaks.AgentTweaks
         }
     }
 	
-	private function DrawMissionBonus(mission:AgentSystemMission, agent:AgentSystemAgent, icon:Object) 
+	private function DrawAgentBonus(mission:AgentSystemMission, agent:AgentSystemAgent, slot:MovieClip) 
 	{
 		var missionOverride:AgentSystemMission = AgentSystem.GetMissionOverride(mission.m_MissionId, agent.m_AgentId);
-		var bonusesCost:Array = [];
-		var bonusesRewards:Array = [];
+		
+		var costIntel:Boolean = missionOverride.m_IntelCost < mission.m_IntelCost;
+		var costSupplies:Boolean = missionOverride.m_SuppliesCost < mission.m_SuppliesCost;
+		var costAssets:Boolean = missionOverride.m_AssetsCost < mission.m_AssetsCost;
+		
+		var rewardIntel:Boolean = missionOverride.m_IntelReward > mission.m_IntelReward;
+		var rewardSupplies:Boolean = missionOverride.m_SuppliesReward > mission.m_SuppliesReward;
+		var rewardAssets:Boolean = missionOverride.m_AssetsReward > mission.m_AssetsReward;
+		
+		var anyBonus:Boolean = costIntel || costSupplies || costAssets || rewardIntel || rewardSupplies || rewardAssets;
+		
+		if (anyBonus)
+			DrawAgentBonusText(costIntel, costSupplies, costAssets, rewardIntel, rewardSupplies, rewardAssets, slot);
+	}
+	
+	private function DrawAgentBonusText(costIntel:Boolean, costSupplies:Boolean, costAssets:Boolean, rewardIntel:Boolean, rewardSupplies:Boolean, rewardAssets:Boolean, slot:MovieClip)
+	{
+		var bonusCost:Array = [];
+		var bonusRewards:Array = [];
 		
 		//cost bonuses
-		if (missionOverride.m_IntelCost < mission.m_IntelCost)
-			bonusesCost.push("T207");
+		if (costIntel)
+			bonusCost.push("Intel");
 		
-		if (missionOverride.m_SuppliesCost < mission.m_SuppliesCost)
-			bonusesCost.push("T208");
+		if (costSupplies)
+			bonusCost.push("Supplies");
 			
-		if (missionOverride.m_AssetsCost < mission.m_AssetsCost)
-			bonusesCost.push("T209");
+		if (costAssets)
+			bonusCost.push("Assets");
 		
 		//Rewards bonuses
-		if (missionOverride.m_IntelReward > mission.m_IntelReward)
-			bonusesRewards.push("T207");
+		if (rewardIntel)
+			bonusRewards.push("Intel");
 		
-		if (missionOverride.m_SuppliesReward > mission.m_SuppliesReward)
-			bonusesRewards.push("T208");
+		if (rewardSupplies)
+			bonusRewards.push("Supplies");
 			
-		//if (missionOverride.m_AssetsReward > mission.m_AssetsReward)
-			bonusesRewards.push("T209");
+		if (rewardAssets)
+			bonusRewards.push("Assets");
 		
-		var portrait = icon.m_Frame;
-		var maxWidth:Number = 104;
-		var clipHeight:Number = 23;
-			
-		if (bonusesCost.length)
+
+		
+		var clip:MovieClip = slot.m_Frame.createEmptyMovieClip("u_bonuses", slot.m_Frame.getNextHighestDepth());
+		
+		clip._x = 2;
+		clip._y = 146;
+		//clip._y = 132;
+		
+		var currentY = -3;
+		var height = 24;
+		var maxWidth = 147.6;
+		
+		if (bonusCost.length == 0 || bonusRewards.length == 0)
 		{
-			var width = bonusesCost.length * 22.5 + 5;
-			var height = clipHeight + 2;
-			var clip:MovieClip = portrait.createEmptyMovieClip("u_bonusesCost", portrait.getNextHighestDepth());
-			clip._x = 24;
-			clip._y = portrait._height - clipHeight;
-			clip.beginFill(Colors.e_ColorLightRed, 50);
-			clip.moveTo(0, 0); 
-			clip.lineTo(width, 0);
-			clip.lineTo(width, height);
-			clip.lineTo(0, height);
-			clip.lineTo(0, 0);
-			clip.endFill();
-			for (var i = 0; i < bonusesCost.length; i++)
-			{
-				var bonus:MovieClip = clip.attachMovie(bonusesCost[i], "m_bonusCost" + i, clip.getNextHighestDepth());
-				bonus._x = i * 22.5 + 2.5;
-				bonus._y = 2;
-				bonus._width = 20;
-				bonus._height = 20;
-			}
+			height = 12;
+		} 
+		
+		DrawTransparentBackground(0, 0, maxWidth, height, 0x000000, 50, clip);
+		
+		var format:TextFormat = slot.m_Name.getTextFormat();
+		
+		format.align = "left";
+		format.size = 10;
+		format.bold = true;
+		
+			
+		if (bonusCost.length)
+		{
+			var text = "- " + bonusCost.join(", ") + " cost";
+			var textfield:TextField = clip.createTextField("m_bonusCost", clip.getNextHighestDepth(), 0, currentY, maxWidth, 20);
+			format.color = Colors.e_ColorPureRed;
+			textfield.setNewTextFormat(format);
+			textfield.embedFonts = true;
+			textfield.text = text;
+			
+			currentY += 12;
 		}
 		
-		if (bonusesRewards.length)
+		if (bonusRewards.length)
 		{
-			var width = bonusesRewards.length * 22.5 + 5;
-			var height = clipHeight + 2;
-			var clip:MovieClip = portrait.createEmptyMovieClip("u_bonusesRewards", portrait.getNextHighestDepth());
-			clip._x = maxWidth - width + 24;
-			clip._y = portrait._height - clipHeight;
-			clip.beginFill(Colors.e_ColorGreen, 50);
-			clip.moveTo(0, 0); 
-			clip.lineTo(width, 0);
-			clip.lineTo(width, height);
-			clip.lineTo(0, height);
-			clip.lineTo(0, 0);
-			clip.endFill();
-			for (var i = 0; i < bonusesRewards.length; i++)
-			{
-				var bonus:MovieClip = clip.attachMovie(bonusesRewards[i], "m_bonusReward" + i, clip.getNextHighestDepth());
-				bonus._x = (bonusesRewards.length - i - 1) * 22.5 + 2.5;
-				bonus._y = 2;
-				bonus._width = 20;
-				bonus._height = 20;
-			}
+			var text = "+ " + bonusRewards.join(", ") + " rewards";
+			var textfield:TextField = clip.createTextField("m_bonusRewards", clip.getNextHighestDepth(), 0, currentY, maxWidth, 20);
+			format.color = Colors.e_ColorPureGreen;
+			textfield.setNewTextFormat(format);
+			textfield.embedFonts = true;
+			textfield.text = text;
 		}
+	}
+	
+	private function DrawTransparentBackground(x:Number, y:Number, width:Number, height:Number, color:Number, transparency:Number, clip:MovieClip)
+	{
+		clip.beginFill(color, transparency);
+		clip.moveTo(x, y); 
+		clip.lineTo(x + width, y);
+		clip.lineTo(x + width, y + height);
+		clip.lineTo(x, y + height);
+		clip.lineTo(x, y);
+		clip.endFill();
 	}
     
     private function DrawBoxAroundTrait(traitPanel:MovieClip, boxIndex: Number, color:Number)
