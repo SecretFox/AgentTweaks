@@ -62,6 +62,7 @@ class com.xeio.AgentTweaks.AgentTweaks
     public function OnUnload()
     {
         AgentSystem.SignalAgentStatusUpdated.Disconnect(AgentStatusUpdated, this);
+        AgentSystem.SignalActiveMissionsUpdated.Disconnect(UpdateCompleteButton, this);
         AgentSystem.SignalAvailableMissionsUpdated.Disconnect(AvailableMissionsUpdated, this);
         AgentSystem.SignalMissionCompleted.Disconnect(MissionCompleted, this);
         m_uiScale.SignalChanged.Disconnect(SetUIScale, this);        
@@ -103,6 +104,7 @@ class com.xeio.AgentTweaks.AgentTweaks
         AgentSystem.SignalAgentStatusUpdated.Connect(AgentStatusUpdated, this);
         AgentSystem.SignalAvailableMissionsUpdated.Connect(AvailableMissionsUpdated, this);
         AgentSystem.SignalMissionCompleted.Connect(MissionCompleted, this);
+        AgentSystem.SignalActiveMissionsUpdated.Connect(UpdateCompleteButton, this);
         
         m_agentInventory = new Inventory(new com.Utils.ID32(_global.Enums.InvType.e_Type_GC_AgentEquipmentInventory, Character.GetClientCharID().GetInstance()));
         
@@ -306,6 +308,16 @@ class com.xeio.AgentTweaks.AgentTweaks
 		hideMaxLabel.setNewTextFormat(roster.m_PageNum.getTextFormat());
 		hideMaxLabel.embedFonts = true;
 		hideMaxLabel.text = "Hide Max Level";
+        
+        var missionPanel : MovieClip = content.m_MissionList;
+        var acceptAllMissionsButton = missionPanel.attachMovie("Final claim Reward States", "u_acceptAll", missionPanel.getNextHighestDepth());
+        acceptAllMissionsButton._y = missionPanel.m_ViewMissionsButton._y + missionPanel.m_ViewMissionsButton._height;
+        acceptAllMissionsButton._x = missionPanel.m_ViewMissionsButton._x;
+        acceptAllMissionsButton._width = missionPanel.m_ViewMissionsButton._width;
+        acceptAllMissionsButton.textField.text = "Accept All Rewards";
+        acceptAllMissionsButton.disableFocus = true;
+        acceptAllMissionsButton.addEventListener("click", this, "AcceptMissionRewards");
+        UpdateCompleteButton();
         
         content.m_Roster.m_PrevButton.addEventListener("click", this, "HighlightMatchingBonuses");
         content.m_Roster.m_NextButton.addEventListener("click", this, "HighlightMatchingBonuses");
@@ -1044,6 +1056,33 @@ class com.xeio.AgentTweaks.AgentTweaks
             if (item && item.m_Name == itemName)
             {
                 return true;
+            }
+        }
+    }
+    
+    private function AcceptMissionRewards()
+    {
+        var missions:Array = AgentSystem.GetActiveMissions();
+        for (var i in missions)
+        {
+            if (AgentSystem.IsMissionComplete(missions[i].m_MissionId))
+            {
+                AgentSystem.AcceptMissionReward(missions[i].m_MissionId);
+            }
+        }
+        UpdateCompleteButton();
+    }
+    
+    private function UpdateCompleteButton()
+    {
+        var acceptAllMissionsButton = _root.agentsystem.m_Window.m_Content.m_MissionList.u_acceptAll;
+        acceptAllMissionsButton._visible = false;
+        var missions:Array = AgentSystem.GetActiveMissions();
+        for (var i in missions)
+        {
+            if (AgentSystem.IsMissionComplete(missions[i].m_MissionId))
+            {
+                acceptAllMissionsButton._visible = true;
             }
         }
     }
