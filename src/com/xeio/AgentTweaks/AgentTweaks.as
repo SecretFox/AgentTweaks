@@ -41,6 +41,8 @@ class com.xeio.AgentTweaks.AgentTweaks
     
     static var FAVORITE_PROP:String = "U_FAVORITE";
     static var ARCHIVE_FAVORITES:String = "FavoriteAgents";
+	
+	static var OutstandingData:Array; // format : OutstandingData[CATEGORYID] = array of matching traits;
 
     public static function main(swfRoot:MovieClip):Void 
     {
@@ -104,6 +106,16 @@ class com.xeio.AgentTweaks.AgentTweaks
         
         m_agentInventory = new Inventory(new com.Utils.ID32(_global.Enums.InvType.e_Type_GC_AgentEquipmentInventory, Character.GetClientCharID().GetInstance()));
         
+		OutstandingData = new Array(7);
+		
+		OutstandingData[0]   = [163];		//Blajini Crit Chance
+		OutstandingData[121] = [553]; 		//Power 
+		OutstandingData[122] = [531, 555]; 	//Resilience 
+		OutstandingData[118] = [541, 2678]; //Charisma 
+		OutstandingData[119] = [176, 2671]; //Dexterity 
+		OutstandingData[123] = [243]; 		//Supernatural 
+		OutstandingData[120] = [205, 536]; 	//Intelligence 
+		
         InitializeUI();
 	}
     
@@ -820,21 +832,35 @@ class com.xeio.AgentTweaks.AgentTweaks
 	{
 		var missionOverride:AgentSystemMission = AgentSystem.GetMissionOverride(mission.m_MissionId, agent.m_AgentId);
 		
+		//bonus cost calc
 		var costIntel:Boolean = missionOverride.m_IntelCost < mission.m_IntelCost;
 		var costSupplies:Boolean = missionOverride.m_SuppliesCost < mission.m_SuppliesCost;
 		var costAssets:Boolean = missionOverride.m_AssetsCost < mission.m_AssetsCost;
 		
+		//bonus rewards calc
 		var rewardIntel:Boolean = missionOverride.m_IntelReward > mission.m_IntelReward;
 		var rewardSupplies:Boolean = missionOverride.m_SuppliesReward > mission.m_SuppliesReward;
 		var rewardAssets:Boolean = missionOverride.m_AssetsReward > mission.m_AssetsReward;
 		
-		var anyBonus:Boolean = costIntel || costSupplies || costAssets || rewardIntel || rewardSupplies || rewardAssets;
+		//bonus crit chance calc
+		var outstandingBonus:Boolean = false;
+		var matchingAgentTraits:Array = OutstandingData[0];
+		for (var i:Number = 0; i < mission.m_BonusTraitCategories.length; i++)
+		{
+			var cat:Number = mission.m_BonusTraitCategories[i];
+			if (OutstandingData[cat] != undefined)
+				matchingAgentTraits = matchingAgentTraits.concat(OutstandingData[cat]);
+		}
+		if (Utils.Contains(matchingAgentTraits, agent.m_Trait1) || Utils.Contains(matchingAgentTraits, agent.m_Trait2))
+			outstandingBonus = true;
+		
+		var anyBonus:Boolean = costIntel || costSupplies || costAssets || rewardIntel || rewardSupplies || rewardAssets || outstandingBonus;
 		
 		if (anyBonus)
-			DrawAgentBonusText(costIntel, costSupplies, costAssets, rewardIntel, rewardSupplies, rewardAssets, slot);
+			DrawAgentBonusText(costIntel, costSupplies, costAssets, rewardIntel, rewardSupplies, rewardAssets, outstandingBonus, slot);
 	}
 	
-	private function DrawAgentBonusText(costIntel:Boolean, costSupplies:Boolean, costAssets:Boolean, rewardIntel:Boolean, rewardSupplies:Boolean, rewardAssets:Boolean, slot:MovieClip)
+	private function DrawAgentBonusText(costIntel:Boolean, costSupplies:Boolean, costAssets:Boolean, rewardIntel:Boolean, rewardSupplies:Boolean, rewardAssets:Boolean, outstandingBonus:Boolean, slot:MovieClip)
 	{
 		var bonusCost:Array = [];
 		var bonusRewards:Array = [];
@@ -859,36 +885,49 @@ class com.xeio.AgentTweaks.AgentTweaks
 		if (rewardAssets)
 			bonusRewards.push("Assets");
 		
-
-		
+		//default UI setup
 		var clip:MovieClip = slot.m_Frame.createEmptyMovieClip("u_bonuses", slot.m_Frame.getNextHighestDepth());
 		
 		clip._x = 2;
 		clip._y = 146;
-		//clip._y = 132;
 		
-		var currentY = -3;
-		var height = 24;
+		var currentY = 0;
 		var maxWidth = 147.6;
 		
-		if (bonusCost.length == 0 || bonusRewards.length == 0)
-		{
-			height = 12;
-		} 
-		
-		DrawTransparentBackground(0, 0, maxWidth, height, 0x000000, 50, clip);
-		
 		var format:TextFormat = slot.m_Name.getTextFormat();
-		
 		format.align = "left";
 		format.size = 10;
 		format.bold = true;
 		
+		//outstanding bonus draw
+		if (outstandingBonus)
+		{
+			clip._y = 132;
+			DrawTransparentBackground(22, 0, 103, 12, 0x000000, 50, clip);
 			
+			var textfield:TextField = clip.createTextField("m_bonusCrit", clip.getNextHighestDepth(), 22, currentY - 3, 103, 20);
+			format.color = Colors.e_ColorCyan;
+			textfield.setNewTextFormat(format);
+			textfield.embedFonts = true;
+			textfield.text = "+ outstanding chance";
+			
+			currentY += 12;
+		}
+		
+		if (bonusCost.length == 0 && bonusRewards.length == 0)
+			return;
+		
+		var height = 24;
+		if (bonusCost.length == 0 || bonusRewards.length == 0)
+			height = 12;
+		
+		DrawTransparentBackground(0, currentY, maxWidth, height, 0x000000, 50, clip);
+		
+		//bonus cost draw
 		if (bonusCost.length)
 		{
 			var text = "- " + bonusCost.join(", ") + " cost";
-			var textfield:TextField = clip.createTextField("m_bonusCost", clip.getNextHighestDepth(), 0, currentY, maxWidth, 20);
+			var textfield:TextField = clip.createTextField("m_bonusCost", clip.getNextHighestDepth(), 0, currentY - 3, maxWidth, 20);
 			format.color = Colors.e_ColorPureRed;
 			textfield.setNewTextFormat(format);
 			textfield.embedFonts = true;
@@ -897,10 +936,11 @@ class com.xeio.AgentTweaks.AgentTweaks
 			currentY += 12;
 		}
 		
+		//bonus rewards draw
 		if (bonusRewards.length)
 		{
 			var text = "+ " + bonusRewards.join(", ") + " rewards";
-			var textfield:TextField = clip.createTextField("m_bonusRewards", clip.getNextHighestDepth(), 0, currentY, maxWidth, 20);
+			var textfield:TextField = clip.createTextField("m_bonusRewards", clip.getNextHighestDepth(), 0, currentY - 3, maxWidth, 20);
 			format.color = Colors.e_ColorPureGreen;
 			textfield.setNewTextFormat(format);
 			textfield.embedFonts = true;
