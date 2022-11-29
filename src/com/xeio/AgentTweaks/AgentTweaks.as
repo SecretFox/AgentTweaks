@@ -6,8 +6,12 @@ import com.GameInterface.AgentSystem;
 import com.GameInterface.Game.Character;
 import com.GameInterface.Inventory;
 import com.GameInterface.InventoryItem;
+import com.GameInterface.Tooltip.TooltipData;
+import com.GameInterface.Tooltip.TooltipInterface;
+import com.GameInterface.Tooltip.TooltipManager;
 import com.Utils.Archive;
 import com.Utils.Colors;
+import com.Utils.Draw;
 import com.Utils.LDBFormat;
 import com.xeio.AgentTweaks.Utils;
 import mx.utils.Delegate;
@@ -41,6 +45,7 @@ class com.xeio.AgentTweaks.AgentTweaks
     
     static var FAVORITE_PROP:String = "U_FAVORITE";
     static var ARCHIVE_FAVORITES:String = "FavoriteAgents";
+    static var Tooltip:TooltipInterface;
 	
 	static var OutstandingData:Array; // format : OutstandingData[CATEGORYID] = array of matching traits;
 
@@ -61,6 +66,7 @@ class com.xeio.AgentTweaks.AgentTweaks
 
     public function OnUnload()
     {
+        Tooltip.Close();
         AgentSystem.SignalAgentStatusUpdated.Disconnect(AgentStatusUpdated, this);
         AgentSystem.SignalActiveMissionsUpdated.Disconnect(UpdateCompleteButton, this);
         AgentSystem.SignalAvailableMissionsUpdated.Disconnect(AvailableMissionsUpdated, this);
@@ -387,8 +393,8 @@ class com.xeio.AgentTweaks.AgentTweaks
         {
             setTimeout(Delegate.create(this, InitializeMissionDetailUI), 100);
             return;
-        }
-        
+        };
+        UpdateDetailCritTooltip();
         missionDetail.SignalClose.Connect(ClearMatches, this);
         missionDetail.SignalClose.Connect(ScheduleResort, this);
         missionDetail.SignalStartMission.Connect(ClearMatches, this);
@@ -421,11 +427,335 @@ class com.xeio.AgentTweaks.AgentTweaks
             m_timeout = setTimeout(Delegate.create(this, UpdateMissionsDisplay), 20);
         }
     }
+	
+    private function GetDiffuculty(id)
+    {
+        var AgentMissionDifficulties:Array = [
+            [], // 0 or 263
+            [317, 346, 343, 392, 381, 2785, 370, 2803, 453, 2809, 434, 328, 336, 384, 371, 2781, 407, 409, 448, 450, 2813, 318, 334, 406, 2811, 324, 348, 2812, 366, 2802, 312, 2788, 2804, 449, 315, 2787, 402, 320, 345, 373, 313], // 1  or 268
+            [316, 443, 444, 369, 437, 387, 570, 321, 326, 329, 365, 569, 386, 417, 418, 415, 445, 452, 361, 342, 390, 429, 440, 388, 331, 2806, 337, 566, 391, 383, 422, 413, 424, 567, 439, 423, 378, 333, 568, 382, 426, 284, 3047, 347, 565, 393, 420, 341, 385, 2807], //2  or 269
+            [335, 340, 353, 375, 367, 412, 323, 352, 364, 389, 416, 442, 351, 2790, 411, 441, 454, 289, 292, 325, 368, 363, 421], //3 or 270
+            [302, 438, 285, 297, 322, 327, 360, 376, 290, 330, 309]    //4  or 299
+        ];
+        var sum = 0;
+        for (var i in AgentMissionDifficulties)
+        {
+            sum += AgentMissionDifficulties[i].length;
+        }
+        for (var i in AgentMissionDifficulties)
+        {
+            for (var y in AgentMissionDifficulties[i])
+            {
+                if (AgentMissionDifficulties[i][y] == id)
+                {
+                    return [Number(i)];
+                }
+            }
+        }
+        //UtilsBase.PrintChatText("missing id " + id);
+        return [0, 1, 2, 3, 4] // 263, 268, 269, 270, 299
+    }
+    
+    private function CalculateCrit(missionData:AgentSystemMission, agent:AgentSystemAgent, totalSuccess:Number)
+    {
+        var agentStats:Array = AgentSystem.GetAgentOverride(agent.m_AgentId);
+        var agentTraits:Array = [agent.m_Trait1, agent.m_Trait2, agentStats[4]];
+        var DoubleWeights = [0.7, 0.3];
+        var TripleWeights = [0.6, 0.3, 0.1];
+        var StarValues:Array = [0, 40, 80, 120, 160, 1];
+        var MissionDifficulties:Array = GetDiffuculty(missionData.m_MissionId);
+        
+        var MissionDifficultyValues = [
+            [1, 30, 40, 60, 120], // 1 star mission
+            [1, 100, 160, 220, 280], // 2 star mission
+            [1, 170, 260, 350, 440], // 3 star mission
+            [1, 240, 360, 480, 600], // 4 star mission
+            [1, 280, 400, 520, 580], // 5 star mission
+            [1, 1, 1, 1, 1, 1] // special mission
+        ];
+        
+        var maxCritChance = [0, 25, 20, 15, 10];
+        var critChanceMultiplier = [0, 0.025, 0.05, 0.02, 0.02];
+        var ret:String = "\n";
+        
+        for (var i = 0; i < MissionDifficulties.length;i++)
+        {
+            var missionDifficulty = MissionDifficulties[i];
+            var missionDifficultyValue = MissionDifficultyValues[missionData.m_StarRating - 1][missionDifficulty];
+            var SuccessStatSum = 0;
+            var missionStarValue = StarValues[missionData.m_StarRating - 1];
+            if (missionData.m_Stat1Requirement != 0 && missionData.m_Stat2Requirement != 0 && missionData.m_Stat3Requirement != 0)
+            {
+                if (missionData.m_Stat1Requirement > missionData.m_Stat2Requirement && missionData.m_Stat2Requirement > missionData.m_Stat3Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * TripleWeights[0]) + (agentStats[1] * TripleWeights[1]) + (agentStats[2] * TripleWeights[2])
+                }
+                else if (missionData.m_Stat1Requirement > missionData.m_Stat3Requirement && missionData.m_Stat3Requirement > missionData.m_Stat2Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * TripleWeights[0]) + (agentStats[1] * TripleWeights[2]) + (agentStats[2] * TripleWeights[1])
+                }
+                else if (missionData.m_Stat1Requirement < missionData.m_Stat2Requirement && missionData.m_Stat2Requirement > missionData.m_Stat3Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * TripleWeights[1]) + (agentStats[1] * TripleWeights[0]) + (agentStats[2] * TripleWeights[2])
+                }
+                else if (missionData.m_Stat1Requirement < missionData.m_Stat3Requirement && missionData.m_Stat3Requirement > missionData.m_Stat2Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * TripleWeights[1]) + (agentStats[1] * TripleWeights[2]) + (agentStats[2] * TripleWeights[0])
+                }
+                else if (missionData.m_Stat1Requirement < missionData.m_Stat2Requirement && missionData.m_Stat2Requirement < missionData.m_Stat3Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * TripleWeights[2]) + (agentStats[1] * TripleWeights[1]) + (agentStats[2] * TripleWeights[0])
+                }
+                else if (missionData.m_Stat1Requirement < missionData.m_Stat3Requirement && missionData.m_Stat3Requirement < missionData.m_Stat2Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * TripleWeights[2]) + (agentStats[1] * TripleWeights[0]) + (agentStats[2] * TripleWeights[1])
+                }
+            }
+            else if (missionData.m_Stat1Requirement != 0 && missionData.m_Stat2Requirement != 0 && missionData.m_Stat3Requirement == 0)
+            {
+                if (missionData.m_Stat1Requirement > missionData.m_Stat2Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * DoubleWeights[0]) + (agentStats[1] * DoubleWeights[1])
+                }
+                else if (missionData.m_Stat2Requirement > missionData.m_Stat1Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * DoubleWeights[1]) + (agentStats[1] * DoubleWeights[0])
+                }
+            }
+            else if (missionData.m_Stat1Requirement != 0 && missionData.m_Stat2Requirement == 0 && missionData.m_Stat3Requirement != 0)
+            {
+                if (missionData.m_Stat1Requirement > missionData.m_Stat3Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * DoubleWeights[0]) + (agentStats[2] * DoubleWeights[1])
+                }
+                else if (missionData.m_Stat3Requirement > missionData.m_Stat1Requirement)
+                {
+                    SuccessStatSum = (agentStats[0] * DoubleWeights[1]) + (agentStats[2] * DoubleWeights[0])
+                }
+            }
+            else if (missionData.m_Stat1Requirement == 0 && missionData.m_Stat2Requirement != 0 && missionData.m_Stat3Requirement != 0)
+            {
+                if (missionData.m_Stat2Requirement > missionData.m_Stat3Requirement)
+                {
+                    SuccessStatSum = (agentStats[1] * DoubleWeights[0]) + (agentStats[2] * DoubleWeights[1])
+                }
+                else if (missionData.m_Stat3Requirement > missionData.m_Stat2Requirement)
+                {
+                    SuccessStatSum = (agentStats[1] * DoubleWeights[1]) + (agentStats[2] * DoubleWeights[0])
+                }
+            }
+            else if (missionData.m_Stat1Requirement != 0 && missionData.m_Stat2Requirement == 0 && missionData.m_Stat3Requirement == 0)
+            {
+                SuccessStatSum = agentStats[0]
+            }
+            else if (missionData.m_Stat1Requirement == 0 && missionData.m_Stat2Requirement != 0 && missionData.m_Stat3Requirement == 0)
+            {
+                SuccessStatSum = agentStats[1]
+            }
+            else if (missionData.m_Stat1Requirement == 0 && missionData.m_Stat2Requirement == 0 && missionData.m_Stat3Requirement != 0)
+            {
+                SuccessStatSum = agentStats[2]
+            }
+            
+            var SuccessChance:Number = (((SuccessStatSum - missionStarValue) / (missionDifficultyValue-missionStarValue)) * 100);
+            var CritChance:Number = SuccessChance * critChanceMultiplier[missionDifficulty]
+            if (CritChance > maxCritChance[missionDifficulty])
+            {
+                CritChance = maxCritChance[missionDifficulty]
+            }
+            if (SuccessChance >= 100) SuccessChance = 100 - CritChance;
+            else SuccessChance -= CritChance;
+            
+            if (missionData.m_MissionId == 2801 || 
+                missionData.m_MissionId == 2802 || 
+                missionData.m_MissionId == 2803 || 
+                missionData.m_MissionId == 2804 || 
+                missionData.m_MissionId == 2805 || 
+                missionData.m_MissionId == 2809 || 
+                missionData.m_MissionId == 2813)
+            {
+                if (agent.m_AgentId != 2791)
+                {
+                    CritChance = 0
+                    SuccessChance = 0
+                }
+            }
+            else if (missionData.m_MissionId == 2806 ||
+                missionData.m_MissionId == 2807 ||
+                missionData.m_MissionId == 2808 ||
+                missionData.m_MissionId == 2810 ||
+                missionData.m_MissionId == 2811 ||
+                missionData.m_MissionId == 2812)
+            {
+                if (agent.m_AgentId == 2791)
+                {
+                    CritChance = 0
+                    SuccessChance = 0
+                }
+            }
+            CritChance = Math.floor(CritChance);
+            SuccessChance = Math.floor(SuccessChance);
+            
+            if ( agent.m_AgentId == 181 ) // amir
+            {
+                SuccessChance += 8;
+            }
+            else if ( agent.m_AgentId == 204 ) // petru
+            {
+                CritChance += 5;
+            }
+            
+            var item:InventoryItem = AgentSystem.GetItemOnAgent(agent.m_AgentId);
+            switch(item.m_ACGItem.m_TemplateID0)
+            {
+                case 9399682:
+                    CritChance += 1;
+                    break;
+                case 9399684:
+                    CritChance += 2;
+                    break;
+                case 9399683:
+                    CritChance += 3;
+                    break;
+            }
+            
+            if ( missionData.m_BonusRewards )
+            {
+                for (var y in missionData.m_BonusTraitCategories)
+                {
+                    switch(missionData.m_BonusTraitCategories[y])
+                    {
+                        case 120:
+                            if ( AgentHasTrait(agent, 205) || AgentHasTrait(agent, 536) )
+                            {
+                                CritChance += 2;
+                            }
+                            break;
+                        case 123:
+                            if ( AgentHasTrait(agent, 243))
+                            {
+                                CritChance += 2;
+                            }
+                            break;
+                        case 119:
+                            if ( AgentHasTrait(agent, 176) || AgentHasTrait(agent, 2671) )
+                            {
+                                CritChance += 2;
+                            }
+                            break;
+                        case 118:
+                            if ( AgentHasTrait(agent, 541) || AgentHasTrait(agent, 2678) )
+                            {
+                                CritChance += 2;
+                            }
+                            break;
+                        case 121:
+                            if ( AgentHasTrait(agent, 553))
+                            {
+                                CritChance += 2;
+                            }
+                            break;
+                        case 122:
+                            if ( AgentHasTrait(agent, 531) || AgentHasTrait(agent, 555) )
+                            {
+                                CritChance += 2;
+                            }
+                            break;
+                    }
+                }
+            }
+            
+            if (missionData.m_Rarity == 170)
+            {
+                for ( var y in missionData.m_BonusTraitCategories)
+                {
+                    if ( !AgentHasTrait(agent, missionData.m_BonusTraitCategories[y]))
+                    {
+                       SuccessChance -= 8;
+                    }
+                }
+            }
+            if (Math.floor(SuccessChance) + Math.floor(CritChance) == 99)
+            {
+                SuccessChance += 1;
+            }
+            if (Math.floor(SuccessChance) + Math.floor(CritChance) > 100) SuccessChance = 100 - CritChance;
+            if ( SuccessChance < 0) SuccessChance = 0;
+            if ( CritChance < 0) CritChance = 0;
+            if ( MissionDifficulties.length > 1)
+            {
+                if (Number(i) == 0) ret += "Unknown difficulty, possible options:";
+                if ( Math.abs(Math.floor(SuccessChance) + Math.floor(CritChance) - totalSuccess) < 2)
+                {
+                    ret += "<font color='#FFFF00'>";
+                }
+                ret += "\nDifficulty: " + missionDifficulty +
+                " Success: " + Math.floor(SuccessChance) + "%" +
+                "Critical: " + Math.floor(CritChance) + "%";
+                if ( Math.abs(Math.floor(SuccessChance) + Math.floor(CritChance) - totalSuccess) < 2)
+                {
+                    ret += "</font>";
+                }
+            }
+            else
+            {
+                return 
+                "Success: " + Math.floor(SuccessChance) + "%\n" +
+                "Critical: " + Math.floor(CritChance) + "%\n" +
+                "Max Crit: " + maxCritChance[missionDifficulty]+"%";
+            }
+            
+            //ret += "(Success: " + Math.floor(SuccessChance*10)/10 + " Critical: " + Math.floor(CritChance*10)/10 + ")\n";
+        }
+        return ret;
+    }
+    
+	private function UpdateDetailCritTooltip()
+	{
+		var missionDetail = _root.agentsystem.m_Window.m_Content.m_MissionDetail;
+		if (missionDetail)
+		{
+			var mission:AgentSystemMission = missionDetail.m_MissionData;
+			var successChance:Number = AgentSystem.GetSuccessChanceForAgent(missionDetail.m_AgentData.m_AgentId, mission.m_MissionId);
+			var crit = CalculateCrit(mission, missionDetail.m_AgentData, successChance);
+			addTooltip(missionDetail, crit);
+		}
+	}
+	
+    private function addTooltip(clip:MovieClip, text:String)
+    {
+        clip.m_HitBox.removeMovieClip();
+        var m_HitBox:MovieClip = clip.createEmptyMovieClip("m_HitBox", clip.getNextHighestDepth());
+		var agentClip = clip.m_AgentIcon ? clip.m_AgentIcon : clip.m_Agent;
+        Draw.DrawRectangle(m_HitBox,
+            agentClip._x + agentClip.m_Success._x,
+            agentClip._y + agentClip.m_Success._y,
+            agentClip.m_Success._width, 
+            agentClip.m_Success._height, 
+            0xCB0309, 0
+        );
+        m_HitBox.onRollOver = Delegate.create(this, function()
+            {
+                this.Tooltip.Close();
+                var m_TooltipData:TooltipData = new TooltipData();
+                m_TooltipData.m_Color = 0xEA4D00;
+                m_TooltipData.m_Padding = 2;
+                m_TooltipData.AddDescription("<font size='12'>" + text + "</font>");
+                this.Tooltip = TooltipManager.GetInstance().ShowTooltip(undefined, TooltipInterface.e_OrientationVertical, -1, m_TooltipData);
+            }
+        );
+        m_HitBox.onRollOut = m_HitBox.onReleaseOutside = Delegate.create(this, function()
+            {
+                this.Tooltip.Close();
+            }
+        );
+		if (clip.HitAreaReleaseHandler) m_HitBox.onRelease = Delegate.create(clip, clip.HitAreaReleaseHandler);
+    }
     
     private function UpdateMissionsDisplay()
     {
         m_timeout = undefined;
-        
+        UpdateDetailCritTooltip();
         var availableMissionList = _root.agentsystem.m_Window.m_Content.m_AvailableMissionList;
         
         if (!availableMissionList)
@@ -434,9 +764,9 @@ class com.xeio.AgentTweaks.AgentTweaks
         }
 		
 		ScaleAvailableMissions();
-        
+        UpdateDetailCritTooltip();
         var agent:AgentSystemAgent = _root.agentsystem.m_Window.m_Content.m_AgentInfoSheet.m_AgentData;
-                
+
         for(var i:Number = 0; i < 5; i++)
         {
             var slotId:String = "m_Slot_" + i;
@@ -455,6 +785,8 @@ class com.xeio.AgentTweaks.AgentTweaks
                 var successChance:Number = AgentSystem.GetSuccessChanceForAgent(agent.m_AgentId, missionData.m_MissionId);
                 agentIcon.m_Success._visible = true;
                 agentIcon.m_Success.m_Text.text = successChance + "%";
+                var crit = CalculateCrit(missionData, agent, successChance);
+                addTooltip(slot, crit);
                 
                 if (BonusIsMatch(agent, missionData))
                 {

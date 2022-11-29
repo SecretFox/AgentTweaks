@@ -11,7 +11,7 @@
     <movie version="8" />
     <movie minorVersion="0" />
     <movie platform="Flash Player" />
-    <movie background="#FFFFFF" />
+    <movie background="#ADAAA7" />
   </output>
   <!-- Other classes to be compiled into your SWF -->
   <classpaths>
@@ -48,17 +48,14 @@
   <!-- Executed before build -->
   <preBuildCommand />
   <!-- Executed after build -->
-  <postBuildCommand alwaysRun="False">xcopy "$(ProjectDir)\deployment\Flash\*.*" "C:\Program Files (x86)\Funcom\Secret World Legends\Data\Gui\Custom\Flash\" /e /y
-
-xcopy "$(ProjectDir)\deployment\Scripts\*.*" "C:\Program Files (x86)\Funcom\Secret World Legends\Scripts\" /e /y
-
-xcopy "$(ProjectDir)\src\mod\*.*" "C:\Program Files (x86)\Funcom\Secret World Legends\Data\Gui\Custom\Flash\$(ProjectName)\" /e /y
-
-xcopy "$(OutputFile)" "C:\Program Files (x86)\Funcom\Secret World Legends\Data\Gui\Custom\Flash\$(ProjectName)\" /e /y</postBuildCommand>
+  <postBuildCommand alwaysRun="False">xcopy "$(ProjectDir)\bin\*.*" "H:\Secret World Legends\Data\Gui\Custom\Flash\$(ProjectName)\*.*" /e /y
+xcopy "$(ProjectDir)\src\mod\*.*" "H:\Secret World Legends\Data\Gui\Custom\Flash\$(ProjectName)\*.*" /e /y
+xcopy "$(ProjectDir)\bin\*.*" "./deployment/$(ProjectName)/*.*" /e /y
+xcopy "$(ProjectDir)\src\mod\*.*" "./deployment/$(ProjectName)/*.*" /e /y</postBuildCommand>
   <!-- Other project options -->
   <options>
     <option showHiddenPaths="False" />
-    <option testMovie="Default" />
+    <option testMovie="Custom" />
     <option testMovieCommand="" />
   </options>
   <!-- Plugin storage -->
