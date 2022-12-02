@@ -738,7 +738,7 @@ class com.xeio.AgentTweaks.AgentTweaks
         return ret;
     }
 
-    private function AddCritTooltip(parent:MovieClip, name:String, x:Number, y:Number, width:Number, height:Number, scale:Number, critText:String)
+    private function AddCritTooltip(parent:MovieClip, name:String, x:Number, y:Number, width:Number, height:Number, scale:Number, critText:String, roster:MovieClip)
     {
         parent[name].removeMovieClip();
         var m_HitBox:MovieClip = parent.createEmptyMovieClip(name, parent.getNextHighestDepth());
@@ -758,6 +758,16 @@ class com.xeio.AgentTweaks.AgentTweaks
             this.Tooltip.Close();
         });
         if (parent.HitAreaReleaseHandler) m_HitBox.onRelease = Delegate.create(parent, parent.HitAreaReleaseHandler);
+        if (parent == _root.agentsystem.m_Window.m_Content.m_Roster)
+        {
+            m_HitBox.onRelease = Delegate.create(this, function()
+            {
+                if (AgentSystem.HasAgent(roster.data.m_AgentId))
+                {
+                    parent.SignalAgentSelected.Emit(roster.data);
+                }
+            });
+        }
     }
 
     private function UpdateMissionsDisplay()
@@ -1197,7 +1207,8 @@ class com.xeio.AgentTweaks.AgentTweaks
                     rosterIcon.m_Success._width,
                     rosterIcon.m_Success._height,
                     rosterIcon._xscale,
-                    crit
+                    crit,
+                    rosterIcon
                 );
             }
             else
