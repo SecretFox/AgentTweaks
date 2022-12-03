@@ -46,13 +46,13 @@ class com.xeio.AgentTweaks.AgentTweaks
     static var FAVORITE_PROP:String = "U_FAVORITE";
     static var ARCHIVE_FAVORITES:String = "FavoriteAgents";
     static var Tooltip:TooltipInterface;
+    static var SavedAgents:Array;
 
     static var OutstandingData:Array; // format : OutstandingData[CATEGORYID] = array of matching traits;
 
     public static function main(swfRoot:MovieClip):Void
     {
         var AgentTweaks = new AgentTweaks(swfRoot);
-
         swfRoot.onLoad = function() { AgentTweaks.OnLoad(); };
         swfRoot.OnUnload =  function() { AgentTweaks.OnUnload(); };
         swfRoot.OnModuleActivated = function(config:Archive) { AgentTweaks.Activate(config); };
@@ -87,6 +87,13 @@ class com.xeio.AgentTweaks.AgentTweaks
         {
             m_FavoriteAgents.push(favorites[i]);
         }
+        SavedAgents = [];
+        var pairs = string(config.FindEntry("SavedAgentsAgents", [])).split("|");
+        for ( var i in pairs) 
+        {
+            SavedAgents.push(pairs[i].split("&"));
+            //com.GameInterface.UtilsBase.PrintChatText("MissionId " + pairs[i].split("&")[0] + " agentId " + pairs[i].split("&")[1]);
+        }
     }
 
     public function Deactivate(): Archive
@@ -96,6 +103,10 @@ class com.xeio.AgentTweaks.AgentTweaks
         {
             archive.AddEntry(ARCHIVE_FAVORITES, m_FavoriteAgents[i]);
         }
+        var Saved = [];
+        for (var i in SavedAgents) Saved[i] = SavedAgents[i].join("&")
+        Saved = Saved.join("|");
+        archive.AddEntry("SavedAgentsAgents", Saved);
         return archive;
     }
 
@@ -383,10 +394,104 @@ class com.xeio.AgentTweaks.AgentTweaks
         ScheduleResort();
         InitializeMissionDetailUI();
     }
+    
+    private function LoadSaved(event:Object)
+    {
+        if ( AgentSystem.HasAgent(event["target"]["agent"]))
+        {
+            _root.agentsystem.m_Window.m_Content.m_Roster.SignalAgentSelected.Emit(AgentSystem.GetAgentById(event["target"]["agent"]));
+        }
+    }
+    
+    private function SetSaved()
+    {
+        var missionDetail = _root.agentsystem.m_Window.m_Content.m_MissionDetail;
+        if (missionDetail)
+        {
+            var agent:AgentSystemAgent = missionDetail.m_AgentData;
+            var mission:AgentSystemMission = missionDetail.m_MissionData
+            if (AgentSystem.HasAgent(agent.m_AgentId) && mission)
+            {
+                var found;
+                for (var i in SavedAgents)
+                {
+                    if ( SavedAgents[i][0] == mission.m_MissionId)
+                    {
+                        SavedAgents[i][1] = agent.m_AgentId;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) SavedAgents.push([mission.m_MissionId, agent.m_AgentId]);
+            }
+        }
+    }
+    
+    private function CreateSaveButton(missionDetail:MovieClip)
+    {
+        missionDetail.m_SaveButton.setMask(null);
+        missionDetail.saveMask.removeMovieClip();
+        missionDetail.m_SaveButton.removeMovieClip();
+        var m_SaveButton:MovieClip = missionDetail.m_DeployButton.duplicateMovieClip(
+            "m_SaveButton", 
+            missionDetail.getNextHighestDepth(),
+            {_x:-25, _y:missionDetail.m_DeployButton._y - missionDetail.m_DeployButton._height/2}
+        );
+        m_SaveButton.textField._x = 55;
+        TextField(m_SaveButton.textField).autoSize = true;
+        m_SaveButton._width = 150;
+        m_SaveButton.label = "Save";
+        m_SaveButton.addEventListener("click", this, "SetSaved");
+        
+        m_SaveButton.setMask(null);        
+        var mask:MovieClip = missionDetail.createEmptyMovieClip("saveMask", missionDetail.getNextHighestDepth());
+        mask._x = m_SaveButton._x;
+        mask._y = m_SaveButton._y;
+        mask.beginFill(0xFF0000);
+        mask.moveTo(28, 0);
+        mask.lineTo(120, 0);
+        mask.lineTo(120, m_SaveButton._height);
+        mask.lineTo(28, m_SaveButton._height);
+        mask.lineTo(28, 0);
+        mask.endFill();
+        m_SaveButton.setMask(mask);
+    }
+    
+    private function CreateLoadButton(missionDetail:MovieClip, agentID:Number)
+    {
+        if (AgentSystem.HasAgent(agentID))
+        {
+            missionDetail.m_LastAgent.setMask(null);
+            missionDetail.lastMask.removeMovieClip();
+            var m_LastAgent:MovieClip = missionDetail.m_DeployButton.duplicateMovieClip(
+                "m_LastAgent", 
+                missionDetail.getNextHighestDepth(),
+                {_x:-25, _y:missionDetail.m_DeployButton._y + missionDetail.m_DeployButton._height/2}
+            );
+            m_LastAgent.textField._x = 55;
+            TextField(m_LastAgent.textField).autoSize = true;
+            m_LastAgent._width = 150;
+            m_LastAgent.label = "Load";
+            m_LastAgent.agent = agentID;
+            m_LastAgent.addEventListener("click", this, "LoadSaved");
+
+            var mask:MovieClip = missionDetail.createEmptyMovieClip("lastMask", missionDetail.getNextHighestDepth());
+            mask._x = m_LastAgent._x;
+            mask._y = m_LastAgent._y;
+            mask.beginFill(0xFF0000);
+            mask.moveTo(28, 0);
+            mask.lineTo(120, 0);
+            mask.lineTo(120, m_LastAgent._height);
+            mask.lineTo(28, m_LastAgent._height);
+            mask.lineTo(28, 0);
+            mask.endFill();
+            m_LastAgent.setMask(mask);
+        }
+    }
 
     private function InitializeMissionDetailUI()
     {
-        var missionDetail = _root.agentsystem.m_Window.m_Content.m_MissionDetail;
+        var missionDetail:MovieClip = _root.agentsystem.m_Window.m_Content.m_MissionDetail;
 
         if (!missionDetail)
         {
@@ -396,13 +501,26 @@ class com.xeio.AgentTweaks.AgentTweaks
         var agentInfoSheet = _root.agentsystem.m_Window.m_Content.m_AgentInfoSheet;
         agentInfoSheet.m_HitBox.removeMovieClip();
         missionDetail.m_HitBox.removeMovieClip();
+        var missionData:AgentSystemMission = missionDetail.m_MissionData;
+        var agent:AgentSystemAgent = agentInfoSheet.m_AgentData;
+        var found:Boolean;
+        for (var i in SavedAgents)
+        {
+            if (SavedAgents[i][0] == missionData.m_MissionId)
+            {
+                found = true;
+                CreateLoadButton(missionDetail, SavedAgents[i][1]);
+                break;
+            }
+        }
+        CreateSaveButton(missionDetail);
+
         if ( agentInfoSheet )
         {
-            var agent:AgentSystemAgent = agentInfoSheet.m_AgentData;
             if (AgentSystem.HasAgent(agent.m_AgentId))
             {
-                var successChance:Number = AgentSystem.GetSuccessChanceForAgent(agent.m_AgentId, missionDetail.m_MissionData);
-                var crit:Object = CalculateCrit(missionDetail.m_MissionData, agent, successChance);
+                var successChance:Number = AgentSystem.GetSuccessChanceForAgent(agent.m_AgentId, missionData.m_MissionId);
+                var crit:Object = CalculateCrit(missionData, agent, successChance);
                 if ( crit["val"] || crit["text"])
                 {
                     setTimeout(Delegate.create(this, function()
@@ -410,12 +528,17 @@ class com.xeio.AgentTweaks.AgentTweaks
                         var content:String = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
                         agentInfoSheet.m_AgentIcon.m_Success.m_Text.multiline = true;
                         agentInfoSheet.m_AgentIcon.m_Success.m_Text.autoSize = "center";
-                        agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
-                                content + "</FONT></P></TEXTFORMAT>";
+                        agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText = 
+                            "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"37\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                            successChance + "%</FONT></P></TEXTFORMAT>" +
+                            "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                            content + "</FONT></P></TEXTFORMAT>";
                         missionDetail.m_Agent.m_Success.m_Text.multiline = true;
                         missionDetail.m_Agent.m_Success.m_Text.autoSize = "center";
-                        missionDetail.m_Agent.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
-                                content + "</FONT></P></TEXTFORMAT>";
+                            "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"37\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                            successChance + "%</FONT></P></TEXTFORMAT>" +
+                            "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                            content + "</FONT></P></TEXTFORMAT>";
                     }), 100);
                 }
                 AddCritTooltip(
@@ -442,6 +565,7 @@ class com.xeio.AgentTweaks.AgentTweaks
         missionDetail.SignalClose.Connect(ScheduleResort, this);
         missionDetail.SignalStartMission.Connect(ClearMatches, this);
         missionDetail.SignalStartMission.Connect(ScheduleResort, this);
+        missionDetail.SignalStartMission.Connect(SaveAgent, this);
 
         HighlightMatchingBonuses();
     }
@@ -477,7 +601,7 @@ class com.xeio.AgentTweaks.AgentTweaks
             [
                 [], // 0 or 263
                 [2801, 274, 2810, 400, 339, 405, 319, 317, 346, 343, 392, 381, 2785, 370, 2803, 453, 2809, 434, 328, 336, 384, 371, 2781, 407, 409, 448, 450, 2813, 318, 334, 406, 2811, 324, 348, 2812, 366, 2802, 312, 2788, 2804, 449, 315, 2787, 402, 320, 345, 373, 313], // 1  or 268
-                [298, 408, 435, 433, 286, 399, 362, 350, 2808, 374, 432, 2805, 358, 2784, 316, 443, 444, 369, 437, 387, 570, 321, 326, 329, 365, 569, 386, 417, 418, 415, 445, 452, 361, 342, 390, 429, 440, 388, 331, 2806, 337, 566, 391, 383, 422, 413, 424, 567, 439, 423, 378, 333, 568, 382, 426, 284, 3047, 347, 565, 393, 420, 341, 385, 2807], //2  or 269
+                [395, 291, 295, 349, 298, 408, 435, 433, 286, 399, 362, 350, 2808, 374, 432, 2805, 358, 2784, 316, 443, 444, 369, 437, 387, 570, 321, 326, 329, 365, 569, 386, 417, 418, 415, 445, 452, 361, 342, 390, 429, 440, 388, 331, 2806, 337, 566, 391, 383, 422, 413, 424, 567, 439, 423, 378, 333, 568, 382, 426, 284, 3047, 347, 565, 393, 420, 341, 385, 2807], //2  or 269
                 [379, 288, 296, 380, 404, 335, 340, 353, 375, 367, 412, 323, 352, 364, 389, 416, 442, 351, 2790, 411, 441, 454, 289, 292, 325, 368, 363, 421], //3 or 270
                 [302, 438, 285, 297, 322, 327, 360, 376, 290, 330, 309]    //4  or 299
             ];
@@ -848,7 +972,9 @@ class com.xeio.AgentTweaks.AgentTweaks
                         agentIcon.m_Success.m_Text.multiline = true;
                         agentIcon.m_Success.m_Text.autoSize = "center";
                         var content = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
-                        agentIcon.m_Success.m_Text.htmlText +=
+                        agentIcon.m_Success.m_Text.htmlText = 
+                            "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"37\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                            successChance + "%</FONT></P></TEXTFORMAT>" +
                             "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
                             content + "</FONT></P></TEXTFORMAT>";
                     }
@@ -983,6 +1109,21 @@ class com.xeio.AgentTweaks.AgentTweaks
             slot.m_Duration.textColor = Colors.e_ColorWhite;
         }
     }
+    
+    private function SaveAgent(missionID:Number, agentID:Number)
+    {
+        var found:Boolean;
+        for (var i in SavedAgents)
+        {
+            if ( SavedAgents[i][0] == missionID)
+            {
+                SavedAgents[i][1] = agentID;
+                found = true;
+                break;
+            }
+        }
+        if (!found) SavedAgents.push([missionID, agentID]);
+    }
 
     private function UpdateAgentDisplay(agent:AgentSystemAgent)
     {
@@ -1016,12 +1157,16 @@ class com.xeio.AgentTweaks.AgentTweaks
                             var content = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
                             agentInfoSheet.m_AgentIcon.m_Success.m_Text.multiline = true;
                             agentInfoSheet.m_AgentIcon.m_Success.m_Text.autoSize = "center";
-                            agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText +=
+                            agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText =
+                                "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"37\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                                successChance + "%</FONT></P></TEXTFORMAT>" +
                                 "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
                                 content + "</FONT></P></TEXTFORMAT>";
                             missionDetail.m_Agent.m_Success.m_Text.multiline = true;
                             missionDetail.m_Agent.m_Success.m_Text.autoSize = "center";
-                            missionDetail.m_Agent.m_Success.m_Text.htmlText +=
+                            missionDetail.m_Agent.m_Success.m_Text.htmlText =
+                                "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"37\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                                successChance + "%</FONT></P></TEXTFORMAT>" +
                                 "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
                                 content + "</FONT></P></TEXTFORMAT>";
                         }
@@ -1250,13 +1395,15 @@ class com.xeio.AgentTweaks.AgentTweaks
         }
     }
 
-    private function AddRosterCrit(target:MovieClip, crit:Object, agentId:Number, content:String)
+    private function AddRosterCrit(target:MovieClip, crit:Object, agentId:Number, content:String, successChance)
     {
         if ( target.data.m_AgentId == agentId)
         {
             target.m_Success.m_Text.multiline = true;
             target.m_Success.m_Text.autoSize = "center";
-            target.m_Success.m_Text.htmlText += 
+            target.m_Success.m_Text.htmlText = 
+                "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"37\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                successChance + "%</FONT></P></TEXTFORMAT>" +
                 "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
                 content + "</FONT></P></TEXTFORMAT>";
         }
@@ -1288,7 +1435,7 @@ class com.xeio.AgentTweaks.AgentTweaks
                 if ( crit["val"] || crit["text"])
                 {
                     var content = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
-                    setTimeout(Delegate.create(this, AddRosterCrit), 100, rosterIcon, crit, agent.m_AgentId,content);
+                    setTimeout(Delegate.create(this, AddRosterCrit), 100, rosterIcon, crit, agent.m_AgentId,content, successChance);
                 }
                 AddCritTooltip(
                     roster, "m_HitBox"+i,
