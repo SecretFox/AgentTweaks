@@ -600,7 +600,7 @@ class com.xeio.AgentTweaks.AgentTweaks
         var AgentMissionDifficulties:Array =
             [
                 [], // 0 or 263
-                [2801, 274, 2810, 400, 339, 405, 319, 317, 346, 343, 392, 381, 2785, 370, 2803, 453, 2809, 434, 328, 336, 384, 371, 2781, 407, 409, 448, 450, 2813, 318, 334, 406, 2811, 324, 348, 2812, 366, 2802, 312, 2788, 2804, 449, 315, 2787, 402, 320, 345, 373, 313], // 1  or 268
+                [559, 2801, 274, 2810, 400, 339, 405, 319, 317, 346, 343, 392, 381, 2785, 370, 2803, 453, 2809, 434, 328, 336, 384, 371, 2781, 407, 409, 448, 450, 2813, 318, 334, 406, 2811, 324, 348, 2812, 366, 2802, 312, 2788, 2804, 449, 315, 2787, 402, 320, 345, 373, 313], // 1  or 268
                 [395, 291, 295, 349, 298, 408, 435, 433, 286, 399, 362, 350, 2808, 374, 432, 2805, 358, 2784, 316, 443, 444, 369, 437, 387, 570, 321, 326, 329, 365, 569, 386, 417, 418, 415, 445, 452, 361, 342, 390, 429, 440, 388, 331, 2806, 337, 566, 391, 383, 422, 413, 424, 567, 439, 423, 378, 333, 568, 382, 426, 284, 3047, 347, 565, 393, 420, 341, 385, 2807], //2  or 269
                 [379, 288, 296, 380, 404, 335, 340, 353, 375, 367, 412, 323, 352, 364, 389, 416, 442, 351, 2790, 411, 441, 454, 289, 292, 325, 368, 363, 421], //3 or 270
                 [302, 438, 285, 297, 322, 327, 360, 376, 290, 330, 309]    //4  or 299
@@ -729,8 +729,11 @@ class com.xeio.AgentTweaks.AgentTweaks
             {
                 SuccessStatSum = agentStats[2]
             }
-
             var SuccessChance:Number = (((SuccessStatSum - missionStarValue) / (missionDifficultyValue-missionStarValue)) * 100);
+            if (missionDifficultyValue-missionStarValue == 0)
+            {
+                SuccessChance = 100;
+            }
             var CritChance:Number = SuccessChance * critChanceMultiplier[missionDifficulty];
             if (CritChance > maxCritChance[missionDifficulty])
             {
@@ -791,7 +794,7 @@ class com.xeio.AgentTweaks.AgentTweaks
                     CritChance += 3;
                     break;
             }
-
+            var bonusCrit:Number = 0;
             if ( missionData.m_BonusRewards )
             {
                 for (var y in missionData.m_BonusTraitCategories)
@@ -799,50 +802,52 @@ class com.xeio.AgentTweaks.AgentTweaks
                     switch (missionData.m_BonusTraitCategories[y])
                     {
                         case 120:
-                            if ( AgentHasTrait(agent, 205) || AgentHasTrait(agent, 536) )
+                            if ( AgentHasTrait(agent, 205) || AgentHasTrait(agent, 536))
                             {
-                                CritChance += 2;
+                                bonusCrit += 2;
                             }
                             break;
                         case 123:
                             if ( AgentHasTrait(agent, 243))
                             {
-                                CritChance += 2;
+                                bonusCrit += 2;
                             }
                             break;
                         case 119:
                             if ( AgentHasTrait(agent, 176) || AgentHasTrait(agent, 2671) )
                             {
-                                CritChance += 2;
+                                bonusCrit += 2;
                             }
                             break;
                         case 118:
                             if ( AgentHasTrait(agent, 541) || AgentHasTrait(agent, 2678) )
                             {
-                                CritChance += 2;
+                                bonusCrit += 2;
                             }
                             break;
                         case 121:
                             if ( AgentHasTrait(agent, 553))
                             {
-                                CritChance += 2;
+                                bonusCrit += 2;
                             }
                             break;
                         case 122:
                             if ( AgentHasTrait(agent, 531) || AgentHasTrait(agent, 555) )
                             {
-                                CritChance += 2;
+                                bonusCrit += 2;
                             }
                             break;
                     }
                 }
             }
+            SuccessChance -= bonusCrit; // why is this necessary here,but not for petru?
+            CritChance += bonusCrit;
 
             if (missionData.m_Rarity == 170)
             {
                 for ( var y in missionData.m_BonusTraitCategories)
                 {
-                    if ( !AgentHasTrait(agent, missionData.m_BonusTraitCategories[y]))
+                    if ( !AgentHasTraitCategory(agent, missionData.m_BonusTraitCategories[y]))
                     {
                         SuccessChance -= 8;
                     }
@@ -1288,7 +1293,7 @@ class com.xeio.AgentTweaks.AgentTweaks
         for (var i in mission.m_BonusTraitCategories)
         {
             var bonusTrait = mission.m_BonusTraitCategories[i];
-            if (!AgentHasTrait(agent, bonusTrait))
+            if (!AgentHasTraitCategory(agent, bonusTrait))
             {
                 return false;
             }
@@ -1462,7 +1467,7 @@ class com.xeio.AgentTweaks.AgentTweaks
             {
                 var bonusTrait = mission.m_BonusTraitCategories[t];
 
-                if (AgentHasTrait(agent, bonusTrait))
+                if (AgentHasTraitCategory(agent, bonusTrait))
                 {
                     var color = matchStatus == MATCH_FULL ? Colors.e_ColorPureGreen : Colors.e_ColorPureYellow;
                     DrawBoxAroundTrait(traitPanel, TraitToIndex(bonusTrait), color);
@@ -1633,7 +1638,7 @@ class com.xeio.AgentTweaks.AgentTweaks
         for (var i in mission.m_BonusTraitCategories)
         {
             var bonusTrait = mission.m_BonusTraitCategories[i];
-            if (AgentHasTrait(agent, bonusTrait))
+            if (AgentHasTraitCategory(agent, bonusTrait))
             {
                 matchedTraits++;
             }
@@ -1656,11 +1661,17 @@ class com.xeio.AgentTweaks.AgentTweaks
         }
         return MATCH_NONE;
     }
-
+    
     private function AgentHasTrait(agent:AgentSystemAgent, trait:Number) :Boolean
     {
         var agentOverrides = AgentSystem.GetAgentOverride(agent.m_AgentId);
-        return trait == agent.m_Trait1Category || trait == agent.m_Trait2Category || trait == agentOverrides[3];
+        return trait == agent.m_Trait1 || trait == agent.m_Trait2 || trait == agentOverrides[4]
+    }
+    
+    private function AgentHasTraitCategory(agent:AgentSystemAgent, trait:Number) :Boolean
+    {
+        var agentOverrides = AgentSystem.GetAgentOverride(agent.m_AgentId);
+        return agent.m_Trait1Category == agent.m_Trait1Category || trait == agent.m_Trait2Category || trait == agentOverrides[3]
     }
 
     private function TraitToIndex(bonusTrait:Number) : Number
