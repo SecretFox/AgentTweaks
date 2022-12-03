@@ -403,15 +403,18 @@ class com.xeio.AgentTweaks.AgentTweaks
             var crit:Object = CalculateCrit(missionDetail.m_MissionData, agent, successChance);
             if ( crit["val"] || crit["text"])
             {
-                var content:String = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
-                agentInfoSheet.m_AgentIcon.m_Success.m_Text.multiline = true;
-                agentInfoSheet.m_AgentIcon.m_Success.m_Text.autoSize = "center";
-                agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
-                        content + "</FONT></P></TEXTFORMAT>";
-                missionDetail.m_Agent.m_Success.m_Text.multiline = true;
-                missionDetail.m_Agent.m_Success.m_Text.autoSize = "center";
-                missionDetail.m_Agent.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
-                        content + "</FONT></P></TEXTFORMAT>";
+                setTimeout(Delegate.create(this, function()
+                {
+                    var content:String = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
+                    agentInfoSheet.m_AgentIcon.m_Success.m_Text.multiline = true;
+                    agentInfoSheet.m_AgentIcon.m_Success.m_Text.autoSize = "center";
+                    agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                            content + "</FONT></P></TEXTFORMAT>";
+                    missionDetail.m_Agent.m_Success.m_Text.multiline = true;
+                    missionDetail.m_Agent.m_Success.m_Text.autoSize = "center";
+                    missionDetail.m_Agent.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                            content + "</FONT></P></TEXTFORMAT>";
+                }), 100);
             }
             AddCritTooltip(
                 agentInfoSheet, "m_HitBox",
