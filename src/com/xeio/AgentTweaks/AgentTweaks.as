@@ -398,42 +398,45 @@ class com.xeio.AgentTweaks.AgentTweaks
         missionDetail.m_HitBox.removeMovieClip();
         if ( agentInfoSheet )
         {
-            var agent = agentInfoSheet.m_AgentData;
-            var successChance:Number = AgentSystem.GetSuccessChanceForAgent(agent.m_AgentId, missionDetail.m_MissionData);
-            var crit:Object = CalculateCrit(missionDetail.m_MissionData, agent, successChance);
-            if ( crit["val"] || crit["text"])
+            var agent:AgentSystemAgent = agentInfoSheet.m_AgentData;
+            if (AgentSystem.HasAgent(agent.m_AgentId))
             {
-                setTimeout(Delegate.create(this, function()
+                var successChance:Number = AgentSystem.GetSuccessChanceForAgent(agent.m_AgentId, missionDetail.m_MissionData);
+                var crit:Object = CalculateCrit(missionDetail.m_MissionData, agent, successChance);
+                if ( crit["val"] || crit["text"])
                 {
-                    var content:String = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
-                    agentInfoSheet.m_AgentIcon.m_Success.m_Text.multiline = true;
-                    agentInfoSheet.m_AgentIcon.m_Success.m_Text.autoSize = "center";
-                    agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
-                            content + "</FONT></P></TEXTFORMAT>";
-                    missionDetail.m_Agent.m_Success.m_Text.multiline = true;
-                    missionDetail.m_Agent.m_Success.m_Text.autoSize = "center";
-                    missionDetail.m_Agent.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
-                            content + "</FONT></P></TEXTFORMAT>";
-                }), 100);
+                    setTimeout(Delegate.create(this, function()
+                    {
+                        var content:String = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
+                        agentInfoSheet.m_AgentIcon.m_Success.m_Text.multiline = true;
+                        agentInfoSheet.m_AgentIcon.m_Success.m_Text.autoSize = "center";
+                        agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                                content + "</FONT></P></TEXTFORMAT>";
+                        missionDetail.m_Agent.m_Success.m_Text.multiline = true;
+                        missionDetail.m_Agent.m_Success.m_Text.autoSize = "center";
+                        missionDetail.m_Agent.m_Success.m_Text.htmlText += "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                                content + "</FONT></P></TEXTFORMAT>";
+                    }), 100);
+                }
+                AddCritTooltip(
+                    agentInfoSheet, "m_HitBox",
+                    agentInfoSheet.m_AgentIcon._x + agentInfoSheet.m_AgentIcon.m_Success._x * agentInfoSheet.m_AgentIcon.m_Success._xscale / 100,
+                    agentInfoSheet.m_AgentIcon._y + agentInfoSheet.m_AgentIcon.m_Success._y * agentInfoSheet.m_AgentIcon.m_Success._xscale / 100,
+                    agentInfoSheet.m_AgentIcon.m_Success._width,
+                    agentInfoSheet.m_AgentIcon.m_Success._height,
+                    agentInfoSheet.m_AgentIcon._xscale,
+                    crit["str"]
+                );
+                AddCritTooltip(
+                    missionDetail, "m_HitBox",
+                    missionDetail.m_Agent._x + missionDetail.m_Agent.m_Success._x * missionDetail.m_Agent.m_Success._xscale / 100,
+                    missionDetail.m_Agent._y + missionDetail.m_Agent.m_Success._y * missionDetail.m_Agent.m_Success._xscale / 100 - 25,
+                    missionDetail.m_Agent.m_Success._width,
+                    missionDetail.m_Agent.m_Success._height,
+                    missionDetail.m_Agent._xscale,
+                    crit["str"]
+                );
             }
-            AddCritTooltip(
-                agentInfoSheet, "m_HitBox",
-                agentInfoSheet.m_AgentIcon._x + agentInfoSheet.m_AgentIcon.m_Success._x * agentInfoSheet.m_AgentIcon.m_Success._xscale / 100,
-                agentInfoSheet.m_AgentIcon._y + agentInfoSheet.m_AgentIcon.m_Success._y * agentInfoSheet.m_AgentIcon.m_Success._xscale / 100,
-                agentInfoSheet.m_AgentIcon.m_Success._width,
-                agentInfoSheet.m_AgentIcon.m_Success._height,
-                agentInfoSheet.m_AgentIcon._xscale,
-                crit["str"]
-            );
-            AddCritTooltip(
-                missionDetail, "m_HitBox",
-                missionDetail.m_Agent._x + missionDetail.m_Agent.m_Success._x * missionDetail.m_Agent.m_Success._xscale / 100,
-                missionDetail.m_Agent._y + missionDetail.m_Agent.m_Success._y * missionDetail.m_Agent.m_Success._xscale / 100 - 25,
-                missionDetail.m_Agent.m_Success._width,
-                missionDetail.m_Agent.m_Success._height,
-                missionDetail.m_Agent._xscale,
-                crit["str"]
-            );
         }
         missionDetail.SignalClose.Connect(ClearMatches, this);
         missionDetail.SignalClose.Connect(ScheduleResort, this);
@@ -475,7 +478,7 @@ class com.xeio.AgentTweaks.AgentTweaks
                 [], // 0 or 263
                 [2801, 274, 2810, 400, 339, 405, 319, 317, 346, 343, 392, 381, 2785, 370, 2803, 453, 2809, 434, 328, 336, 384, 371, 2781, 407, 409, 448, 450, 2813, 318, 334, 406, 2811, 324, 348, 2812, 366, 2802, 312, 2788, 2804, 449, 315, 2787, 402, 320, 345, 373, 313], // 1  or 268
                 [298, 408, 435, 433, 286, 399, 362, 350, 2808, 374, 432, 2805, 358, 2784, 316, 443, 444, 369, 437, 387, 570, 321, 326, 329, 365, 569, 386, 417, 418, 415, 445, 452, 361, 342, 390, 429, 440, 388, 331, 2806, 337, 566, 391, 383, 422, 413, 424, 567, 439, 423, 378, 333, 568, 382, 426, 284, 3047, 347, 565, 393, 420, 341, 385, 2807], //2  or 269
-                [288, 296, 380, 404, 335, 340, 353, 375, 367, 412, 323, 352, 364, 389, 416, 442, 351, 2790, 411, 441, 454, 289, 292, 325, 368, 363, 421], //3 or 270
+                [379, 288, 296, 380, 404, 335, 340, 353, 375, 367, 412, 323, 352, 364, 389, 416, 442, 351, 2790, 411, 441, 454, 289, 292, 325, 368, 363, 421], //3 or 270
                 [302, 438, 285, 297, 322, 327, 360, 376, 290, 330, 309]    //4  or 299
             ];
         /*
@@ -833,29 +836,34 @@ class com.xeio.AgentTweaks.AgentTweaks
             slot.m_HitBox.removeMovieClip();
             if (agent && missionData && missionData.m_MissionId > 0)
             {
-                var successChance:Number = AgentSystem.GetSuccessChanceForAgent(agent.m_AgentId, missionData.m_MissionId);
-                agentIcon.m_Success._visible = true;
-                agentIcon.m_Success.m_Text.text = successChance + "%";
-                var crit:Object = CalculateCrit(missionData, agent, successChance);
-                if ( crit["val"] || crit["text"])
+                var missionOverride = AgentSystem.GetMissionOverride(missionData.m_MissionId, agent.m_AgentId);
+                if ( AgentSystem.HasAgent(agent.m_AgentId))
                 {
-                    agentIcon.m_Success.m_Text.multiline = true;
-                    agentIcon.m_Success.m_Text.autoSize = "center";
-                    var content = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
-                    agentIcon.m_Success.m_Text.htmlText +=
-                        "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
-                        content + "</FONT></P></TEXTFORMAT>";
+                    var successChance:Number = AgentSystem.GetSuccessChanceForAgent(agent.m_AgentId, missionData.m_MissionId);
+                    agentIcon.m_Success._visible = true;
+                    agentIcon.m_Success.m_Text.text = successChance + "%";
+                    var crit:Object = CalculateCrit(missionData, agent, successChance);
+                    if ( crit["val"] || crit["text"])
+                    {
+                        agentIcon.m_Success.m_Text.multiline = true;
+                        agentIcon.m_Success.m_Text.autoSize = "center";
+                        var content = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
+                        agentIcon.m_Success.m_Text.htmlText +=
+                            "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                            content + "</FONT></P></TEXTFORMAT>";
+                    }
+                    AddCritTooltip(
+                        slot, "m_HitBox",
+                        slot.m_AgentIcon._x + slot.m_AgentIcon.m_Success._x * slot.m_AgentIcon.m_Success._xscale / 100,
+                        slot.m_AgentIcon._y + slot.m_AgentIcon.m_Success._y * slot.m_AgentIcon.m_Success._xscale / 100,
+                        slot.m_AgentIcon.m_Success._width,
+                        slot.m_AgentIcon.m_Success._height,
+                        slot.m_AgentIcon._xscale,
+                        crit["str"] || crit["text"]
+                    );
+                    SetMissionSlotTimer(slot, missionData, missionOverride);
+                    UpdateRewards(slot, missionData, missionOverride);
                 }
-                AddCritTooltip(
-                    slot, "m_HitBox",
-                    slot.m_AgentIcon._x + slot.m_AgentIcon.m_Success._x * slot.m_AgentIcon.m_Success._xscale / 100,
-                    slot.m_AgentIcon._y + slot.m_AgentIcon.m_Success._y * slot.m_AgentIcon.m_Success._xscale / 100,
-                    slot.m_AgentIcon.m_Success._width,
-                    slot.m_AgentIcon.m_Success._height,
-                    slot.m_AgentIcon._xscale,
-                    crit["str"] || crit["text"]
-                );
-
                 if (BonusIsMatch(agent, missionData))
                 {
                     bonusView.m_Header.textColor = 0x00FF00
@@ -864,10 +872,6 @@ class com.xeio.AgentTweaks.AgentTweaks
                 {
                     bonusView.m_Header.textColor = 0xFFFFFF
                 }
-
-                var missionOverride = AgentSystem.GetMissionOverride(missionData.m_MissionId, agent.m_AgentId);
-                UpdateRewards(slot, missionData, missionOverride);
-                SetMissionSlotTimer(slot, missionData, missionOverride);
             }
             else if (missionData && missionData.m_MissionId > 0)
             {
@@ -1001,44 +1005,47 @@ class com.xeio.AgentTweaks.AgentTweaks
             var crit:Object = CalculateCrit(missionData, agent, successChance);
             missionDetail.m_HitBox.removeMovieClip();
             agentInfoSheet.m_HitBox.removeMovieClip();
-            if ( crit["val"] || crit["text"])
+            if ( AgentSystem.HasAgent(agent.m_AgentId))
             {
-                setTimeout(Delegate.create(this, function()
+                if ( crit["val"] || crit["text"])
                 {
-                    if (agentInfoSheet && missionDetail)
+                    setTimeout(Delegate.create(this, function()
                     {
-                        var content = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
-                        agentInfoSheet.m_AgentIcon.m_Success.m_Text.multiline = true;
-                        agentInfoSheet.m_AgentIcon.m_Success.m_Text.autoSize = "center";
-                        agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText +=
-                            "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
-                            content + "</FONT></P></TEXTFORMAT>";
-                        missionDetail.m_Agent.m_Success.m_Text.multiline = true;
-                        missionDetail.m_Agent.m_Success.m_Text.autoSize = "center";
-                        missionDetail.m_Agent.m_Success.m_Text.htmlText +=
-                            "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
-                            content + "</FONT></P></TEXTFORMAT>";
-                    }
-                }), 100);
+                        if (agentInfoSheet && missionDetail)
+                        {
+                            var content = crit["val"] ? crit["val"][0] + " + " + crit["val"][1] : crit["text"];
+                            agentInfoSheet.m_AgentIcon.m_Success.m_Text.multiline = true;
+                            agentInfoSheet.m_AgentIcon.m_Success.m_Text.autoSize = "center";
+                            agentInfoSheet.m_AgentIcon.m_Success.m_Text.htmlText +=
+                                "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                                content + "</FONT></P></TEXTFORMAT>";
+                            missionDetail.m_Agent.m_Success.m_Text.multiline = true;
+                            missionDetail.m_Agent.m_Success.m_Text.autoSize = "center";
+                            missionDetail.m_Agent.m_Success.m_Text.htmlText +=
+                                "<TEXTFORMAT INDENT=\"0\" LEFTMARGIN=\"0\" RIGHTMARGIN=\"0\" LEADING=\"2\"><P ALIGN=\"CENTER\"><FONT FACE=\"Futura Std Book Fix\" SIZE=\"15\" COLOR=\"#CCCCCC\" KERNING=\"0\">" +
+                                content + "</FONT></P></TEXTFORMAT>";
+                        }
+                    }), 100);
+                }
+                AddCritTooltip(
+                    agentInfoSheet, "m_HitBox",
+                    agentInfoSheet.m_AgentIcon._x + agentInfoSheet.m_AgentIcon.m_Success._x * agentInfoSheet.m_AgentIcon.m_Success._xscale / 100,
+                    agentInfoSheet.m_AgentIcon._y + agentInfoSheet.m_AgentIcon.m_Success._y * agentInfoSheet.m_AgentIcon.m_Success._xscale / 100,
+                    agentInfoSheet.m_AgentIcon.m_Success._width,
+                    agentInfoSheet.m_AgentIcon.m_Success._height,
+                    agentInfoSheet.m_AgentIcon._xscale,
+                    crit["str"]
+                );
+                AddCritTooltip(
+                    missionDetail, "m_HitBox",
+                    missionDetail.m_Agent._x + missionDetail.m_Agent.m_Success._x * missionDetail.m_Agent.m_Success._xscale / 100,
+                    missionDetail.m_Agent._y + missionDetail.m_Agent.m_Success._y * missionDetail.m_Agent.m_Success._xscale / 100 - 25,
+                    missionDetail.m_Agent.m_Success._width,
+                    missionDetail.m_Agent.m_Success._height,
+                    missionDetail.m_Agent._xscale,
+                    crit["str"]
+                );
             }
-            AddCritTooltip(
-                agentInfoSheet, "m_HitBox",
-                agentInfoSheet.m_AgentIcon._x + agentInfoSheet.m_AgentIcon.m_Success._x * agentInfoSheet.m_AgentIcon.m_Success._xscale / 100,
-                agentInfoSheet.m_AgentIcon._y + agentInfoSheet.m_AgentIcon.m_Success._y * agentInfoSheet.m_AgentIcon.m_Success._xscale / 100,
-                agentInfoSheet.m_AgentIcon.m_Success._width,
-                agentInfoSheet.m_AgentIcon.m_Success._height,
-                agentInfoSheet.m_AgentIcon._xscale,
-                crit["str"]
-            );
-            AddCritTooltip(
-                missionDetail, "m_HitBox",
-                missionDetail.m_Agent._x + missionDetail.m_Agent.m_Success._x * missionDetail.m_Agent.m_Success._xscale / 100,
-                missionDetail.m_Agent._y + missionDetail.m_Agent.m_Success._y * missionDetail.m_Agent.m_Success._xscale / 100 - 25,
-                missionDetail.m_Agent.m_Success._width,
-                missionDetail.m_Agent.m_Success._height,
-                missionDetail.m_Agent._xscale,
-                crit["str"]
-            );
         }
 
         var healthField:TextField = agentInfoSheet.u_health;
