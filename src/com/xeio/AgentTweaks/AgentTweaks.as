@@ -600,10 +600,10 @@ class com.xeio.AgentTweaks.AgentTweaks
         var AgentMissionDifficulties:Array =
             [
                 [], // 0 or 263
-                [559, 2801, 274, 2810, 400, 339, 405, 319, 317, 346, 343, 392, 381, 2785, 370, 2803, 453, 2809, 434, 328, 336, 384, 371, 2781, 407, 409, 448, 450, 2813, 318, 334, 406, 2811, 324, 348, 2812, 366, 2802, 312, 2788, 2804, 449, 315, 2787, 402, 320, 345, 373, 313], // 1  or 268
+                [2788, 344, 559, 2801, 274, 2810, 400, 339, 405, 319, 317, 346, 343, 392, 381, 2785, 370, 2803, 453, 2809, 434, 328, 336, 384, 371, 2781, 407, 409, 448, 450, 2813, 318, 334, 406, 2811, 324, 348, 2812, 366, 2802, 312, 2788, 2804, 449, 315, 2787, 402, 320, 345, 373, 313], // 1  or 268
                 [395, 291, 295, 349, 298, 408, 435, 433, 286, 399, 362, 350, 2808, 374, 432, 2805, 358, 2784, 316, 443, 444, 369, 437, 387, 570, 321, 326, 329, 365, 569, 386, 417, 418, 415, 445, 452, 361, 342, 390, 429, 440, 388, 331, 2806, 337, 566, 391, 383, 422, 413, 424, 567, 439, 423, 378, 333, 568, 382, 426, 284, 3047, 347, 565, 393, 420, 341, 385, 2807], //2  or 269
-                [379, 288, 296, 380, 404, 335, 340, 353, 375, 367, 412, 323, 352, 364, 389, 416, 442, 351, 2790, 411, 441, 454, 289, 292, 325, 368, 363, 421], //3 or 270
-                [302, 438, 285, 297, 322, 327, 360, 376, 290, 330, 309]    //4  or 299
+                [293, 379, 288, 296, 380, 404, 335, 340, 353, 375, 367, 412, 323, 352, 364, 389, 416, 442, 351, 2790, 411, 441, 454, 289, 292, 325, 368, 363, 421], //3 or 270
+                [310, 302, 438, 285, 297, 322, 327, 360, 376, 290, 330, 309]    //4  or 299
             ];
         /*
         var sum = 0;
@@ -732,7 +732,7 @@ class com.xeio.AgentTweaks.AgentTweaks
             var SuccessChance:Number = (((SuccessStatSum - missionStarValue) / (missionDifficultyValue-missionStarValue)) * 100);
             if (missionDifficultyValue-missionStarValue == 0)
             {
-                SuccessChance = 100;
+                SuccessChance = 1000000;
             }
             var CritChance:Number = SuccessChance * critChanceMultiplier[missionDifficulty];
             if (CritChance > maxCritChance[missionDifficulty])
@@ -1671,7 +1671,7 @@ class com.xeio.AgentTweaks.AgentTweaks
     private function AgentHasTraitCategory(agent:AgentSystemAgent, trait:Number) :Boolean
     {
         var agentOverrides = AgentSystem.GetAgentOverride(agent.m_AgentId);
-        return agent.m_Trait1Category == agent.m_Trait1Category || trait == agent.m_Trait2Category || trait == agentOverrides[3]
+        return trait == agent.m_Trait1Category || trait == agent.m_Trait2Category || trait == agentOverrides[3]
     }
 
     private function TraitToIndex(bonusTrait:Number) : Number
