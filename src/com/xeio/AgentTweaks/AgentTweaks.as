@@ -566,7 +566,6 @@ class com.xeio.AgentTweaks.AgentTweaks
         missionDetail.SignalStartMission.Connect(ClearMatches, this);
         missionDetail.SignalStartMission.Connect(ScheduleResort, this);
         missionDetail.SignalStartMission.Connect(SaveAgent, this);
-
         HighlightMatchingBonuses();
     }
 
@@ -1117,6 +1116,10 @@ class com.xeio.AgentTweaks.AgentTweaks
     
     private function SaveAgent(missionID:Number, agentID:Number)
     {
+        if ( !DistributedValueBase.GetDValue("AgentTweaks_SaveAgentOnMissionStart"))
+        {
+            return;
+        }
         var found:Boolean;
         for (var i in SavedAgents)
         {
