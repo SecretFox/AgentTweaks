@@ -16,5 +16,7 @@ Highlights matching bonuses.
 
 Displays agent fatigue %.
 
+Adds buttons for saving/loading agent per mission.
+
 ![UI Preview](https://i.imgur.com/BczIEBf.png)
 ![UI Preview2](https://i.imgur.com/GAQZhYf.png)
